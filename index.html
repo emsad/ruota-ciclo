@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Ruota del ciclo</title>
+    <meta
+      name="description"
+      content="Una semplice ruota del ciclo mestruale con dati salvati solo nel browser."
+    >
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="topbar" aria-labelledby="app-title">
+        <div>
+          <p class="eyebrow">Tracker locale</p>
+          <h1 id="app-title">Ruota del ciclo</h1>
+        </div>
+        <div class="privacy-note">Dati salvati solo su questo dispositivo</div>
+      </section>
+
+      <section class="layout">
+        <div class="wheel-panel" aria-label="Ruota del ciclo mestruale">
+          <div class="phase-label phase-label-top">Fase follicolare</div>
+          <div class="phase-label phase-label-bottom">Fase luteale</div>
+          <div class="wheel-wrap">
+            <div class="cycle-wheel" id="cycleWheel"></div>
+            <div class="wheel-center">
+              <span class="center-kicker">Oggi</span>
+              <strong id="todayDay">-</strong>
+              <span id="todayPhase">Imposta una data</span>
+            </div>
+          </div>
+        </div>
+
+        <aside class="control-panel" aria-label="Controlli della ruota">
+          <form id="settingsForm" class="form-grid">
+            <label>
+              <span>Ultimo inizio mestruazione</span>
+              <input id="lastStart" type="date" required>
+            </label>
+            <label>
+              <span>Durata ciclo</span>
+              <input id="cycleLength" type="number" min="21" max="40" value="28">
+            </label>
+            <label>
+              <span>Giorni di mestruazione</span>
+              <input id="periodLength" type="number" min="1" max="10" value="5">
+            </label>
+            <button type="submit">Aggiorna ruota</button>
+          </form>
+
+          <div class="summary-grid">
+            <div>
+              <span>Prossimo ciclo</span>
+              <strong id="nextPeriod">-</strong>
+            </div>
+            <div>
+              <span>Giorni mancanti</span>
+              <strong id="daysUntil">-</strong>
+            </div>
+            <div>
+              <span>Finestra fertile stimata</span>
+              <strong id="fertileWindow">-</strong>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button id="markToday" type="button">Segna oggi come inizio</button>
+            <button id="clearData" type="button" class="secondary">Cancella dati</button>
+          </div>
+
+          <section class="legend" aria-label="Legenda fasi">
+            <div><span class="dot period"></span>Mestruazione</div>
+            <div><span class="dot follicular"></span>Fase follicolare</div>
+            <div><span class="dot fertile"></span>Finestra fertile</div>
+            <div><span class="dot ovulation"></span>Ovulazione stimata</div>
+            <div><span class="dot luteal"></span>Fase luteale</div>
+          </section>
+        </aside>
+      </section>
+
+      <section class="history-panel" aria-labelledby="history-title">
+        <div>
+          <p class="eyebrow">Storico</p>
+          <h2 id="history-title">Date segnate</h2>
+        </div>
+        <ul id="historyList" class="history-list"></ul>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>

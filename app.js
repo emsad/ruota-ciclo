@@ -1,188 +1,111 @@
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const todayKey = toInputDate(new Date());
 
 const defaults = {
-  lastStart: toInputDate(new Date()),
+  lastStart: null,
   cycleLength: 28,
   periodLength: 5,
   history: []
 };
 
-const state = { ...defaults, history: [] };
+const state = { ...defaults, history: [], observation: null };
 const db = window.ADueDb;
-const wheel = document.querySelector("#cycleWheel");
-const form = document.querySelector("#settingsForm");
-const lastStartInput = document.querySelector("#lastStart");
-const cycleLengthInput = document.querySelector("#cycleLength");
-const periodLengthInput = document.querySelector("#periodLength");
-const todayDay = document.querySelector("#todayDay");
-const todayPhase = document.querySelector("#todayPhase");
-const nextPeriod = document.querySelector("#nextPeriod");
-const daysUntil = document.querySelector("#daysUntil");
-const fertileWindow = document.querySelector("#fertileWindow");
-const historyList = document.querySelector("#historyList");
-const markToday = document.querySelector("#markToday");
-const clearData = document.querySelector("#clearData");
-const todayHeat = document.querySelector("#todayHeat");
-const playDayLabel = document.querySelector("#playDayLabel");
-const funLevel = document.querySelector("#funLevel");
-const funNote = document.querySelector("#funNote");
-const suggestionText = document.querySelector("#suggestionText");
-const newSuggestion = document.querySelector("#newSuggestion");
-const authGate = document.querySelector("#authGate");
-const authForm = document.querySelector("#authForm");
-const authEmail = document.querySelector("#authEmail");
-const authPassword = document.querySelector("#authPassword");
-const authStatus = document.querySelector("#authStatus");
-const signUpButton = document.querySelector("#signUp");
-const signOutButton = document.querySelector("#signOut");
-const appShell = document.querySelector("#appShell");
-const accountEmail = document.querySelector("#accountEmail");
-const syncStatus = document.querySelector("#syncStatus");
-const historyFile = document.querySelector("#historyFile");
-const importHistoryButton = document.querySelector("#importHistory");
-const importStatus = document.querySelector("#importStatus");
-
-let selectedDay = null;
-let activeSuggestions = [];
-let suggestionIndex = 0;
 let profileId = null;
 let activeUserId = null;
+let selectedDay = null;
 
-lastStartInput.value = state.lastStart;
-cycleLengthInput.value = state.cycleLength;
-periodLengthInput.value = state.periodLength;
+const elements = {
+  authGate: document.querySelector("#authGate"),
+  authForm: document.querySelector("#authForm"),
+  authEmail: document.querySelector("#authEmail"),
+  authPassword: document.querySelector("#authPassword"),
+  authStatus: document.querySelector("#authStatus"),
+  signUp: document.querySelector("#signUp"),
+  signOut: document.querySelector("#signOut"),
+  appShell: document.querySelector("#appShell"),
+  accountEmail: document.querySelector("#accountEmail"),
+  accountInitial: document.querySelector("#accountInitial"),
+  syncStatus: document.querySelector("#syncStatus"),
+  currentMonth: document.querySelector("#currentMonth"),
+  timeline: document.querySelector("#cycleTimeline"),
+  dayContext: document.querySelector("#dayContext"),
+  todayDay: document.querySelector("#todayDay"),
+  phaseTitle: document.querySelector("#phaseTitle"),
+  phaseDescription: document.querySelector("#phaseDescription"),
+  trendDay: document.querySelector("#trendDay"),
+  trendPhase: document.querySelector("#trendPhase"),
+  trendLabel: document.querySelector("#trendLabel"),
+  trendText: document.querySelector("#trendText"),
+  settingsForm: document.querySelector("#settingsForm"),
+  lastStart: document.querySelector("#lastStart"),
+  cycleLength: document.querySelector("#cycleLength"),
+  periodLength: document.querySelector("#periodLength"),
+  markToday: document.querySelector("#markToday"),
+  nextPeriod: document.querySelector("#nextPeriod"),
+  daysUntil: document.querySelector("#daysUntil"),
+  fertileWindow: document.querySelector("#fertileWindow"),
+  historyList: document.querySelector("#historyList"),
+  clearData: document.querySelector("#clearData"),
+  historyFile: document.querySelector("#historyFile"),
+  importHistory: document.querySelector("#importHistory"),
+  importStatus: document.querySelector("#importStatus"),
+  dailyForm: document.querySelector("#dailyForm"),
+  observationStatus: document.querySelector("#observationStatus"),
+  energyInput: document.querySelector("#energyInput"),
+  energyOutput: document.querySelector("#energyOutput"),
+  moodInput: document.querySelector("#moodInput"),
+  moodOutput: document.querySelector("#moodOutput"),
+  libidoInput: document.querySelector("#libidoInput"),
+  libidoOutput: document.querySelector("#libidoOutput"),
+  irritabilityInput: document.querySelector("#irritabilityInput"),
+  irritabilityOutput: document.querySelector("#irritabilityOutput"),
+  painInput: document.querySelector("#painInput"),
+  painOutput: document.querySelector("#painOutput"),
+  notesInput: document.querySelector("#notesInput")
+};
 
-form.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  state.lastStart = lastStartInput.value;
-  state.cycleLength = clamp(Number(cycleLengthInput.value), 21, 40);
-  state.periodLength = clamp(Number(periodLengthInput.value), 1, 10);
-  addHistoryDate(state.lastStart);
-  try {
-    setSyncStatus("Salvataggio...");
-    await saveState();
-    render();
-    setSyncStatus("Salvato");
-  } catch (error) {
-    setSyncStatus(`Errore: ${readableError(error)}`);
-  }
+const scoreLabels = {
+  energy: ["Molto bassa", "Bassa", "Moderata", "Buona", "Alta", "Molto alta"],
+  mood: ["Difficile", "Faticoso", "Variabile", "Sereno", "Positivo", "Molto positivo"],
+  libido: ["Assente", "Molto bassa", "Bassa", "Presente", "Alta", "Molto alta"]
+};
+
+elements.currentMonth.textContent = new Intl.DateTimeFormat("it-IT", {
+  month: "long",
+  year: "numeric"
+}).format(new Date()).replace(/^./, (letter) => letter.toUpperCase());
+
+elements.settingsForm.addEventListener("submit", saveCycleSettings);
+elements.markToday.addEventListener("click", markTodayAsStart);
+elements.clearData.addEventListener("click", clearProfile);
+elements.importHistory.addEventListener("click", importHistory);
+elements.dailyForm.addEventListener("submit", saveDailyObservation);
+elements.authForm.addEventListener("submit", signIn);
+elements.signUp.addEventListener("click", signUp);
+elements.signOut.addEventListener("click", signOut);
+
+[
+  [elements.energyInput, elements.energyOutput, "energy"],
+  [elements.moodInput, elements.moodOutput, "mood"],
+  [elements.libidoInput, elements.libidoOutput, "libido"]
+].forEach(([input, output, type]) => {
+  input.addEventListener("input", () => {
+    output.textContent = scoreLabels[type][Number(input.value)];
+  });
 });
 
-markToday.addEventListener("click", async () => {
-  state.lastStart = toInputDate(new Date());
-  addHistoryDate(state.lastStart);
-  lastStartInput.value = state.lastStart;
-  try {
-    setSyncStatus("Salvataggio...");
-    await saveState();
-    render();
-    setSyncStatus("Salvato");
-  } catch (error) {
-    setSyncStatus(`Errore: ${readableError(error)}`);
-  }
-});
-
-clearData.addEventListener("click", async () => {
-  const confirmed = window.confirm("Cancellare dal database tutte le date e le osservazioni del profilo?");
-  if (!confirmed) return;
-
-  try {
-    setSyncStatus("Cancellazione...");
-    await db.clearProfileData(profileId, defaults);
-  } catch (error) {
-    setSyncStatus(`Errore: ${readableError(error)}`);
-    return;
-  }
-
-  Object.assign(state, { ...defaults, history: [] });
-  syncInputs();
-  render();
-  setSyncStatus("Dati cancellati");
-});
-
-newSuggestion.addEventListener("click", () => {
-  if (activeSuggestions.length === 0) return;
-  suggestionIndex = (suggestionIndex + 1) % activeSuggestions.length;
-  suggestionText.textContent = activeSuggestions[suggestionIndex];
-});
-
-authForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  authStatus.textContent = "Accesso...";
-
-  try {
-    const session = await db.signIn(authEmail.value.trim(), authPassword.value);
-    if (session) await activateSession(session);
-  } catch (error) {
-    authStatus.textContent = readableError(error);
-  }
-});
-
-signUpButton.addEventListener("click", async () => {
-  if (!authForm.reportValidity()) return;
-  authStatus.textContent = "Creazione account...";
-
-  try {
-    const result = await db.signUp(authEmail.value.trim(), authPassword.value);
-    if (result.session) {
-      await activateSession(result.session);
-    } else {
-      authStatus.textContent = "Controlla la tua email per confermare l'account, poi accedi.";
-    }
-  } catch (error) {
-    authStatus.textContent = readableError(error);
-  }
-});
-
-signOutButton.addEventListener("click", async () => {
-  try {
-    await db.signOut();
-    showAuth();
-  } catch (error) {
-    setSyncStatus(`Errore: ${readableError(error)}`);
-  }
-});
-
-importHistoryButton.addEventListener("click", async () => {
-  const file = historyFile.files[0];
-  if (!file) {
-    importStatus.textContent = "Seleziona prima un file CSV.";
-    return;
-  }
-
-  importStatus.textContent = "Lettura e controllo...";
-
-  try {
-    const parsed = window.Papa.parse(await file.text(), {
-      header: true,
-      skipEmptyLines: "greedy",
-      transformHeader: (header) => header.trim().toLowerCase()
-    });
-
-    if (parsed.errors.length > 0) {
-      throw new Error(parsed.errors[0].message);
-    }
-
-    const normalized = normalizeHistoricalRows(parsed.data);
-    await db.importHistory(profileId, normalized.cycleStarts, normalized.observations);
-
-    const events = await db.loadCycleEvents(profileId);
-    state.history = events.map((event) => event.start_date);
-    if (state.history[0]) state.lastStart = state.history[0];
-    syncInputs();
-    render();
-    historyFile.value = "";
-    importStatus.textContent = `${normalized.total} righe importate.`;
-  } catch (error) {
-    importStatus.textContent = `Errore: ${readableError(error)}`;
-  }
+[
+  [elements.irritabilityInput, elements.irritabilityOutput],
+  [elements.painInput, elements.painOutput]
+].forEach(([input, output]) => {
+  input.addEventListener("input", () => { output.textContent = input.value; });
 });
 
 initialize();
 
 async function initialize() {
   if (!db) {
-    authStatus.textContent = "Configurazione database non disponibile.";
+    elements.authStatus.textContent = "Configurazione database non disponibile.";
     return;
   }
 
@@ -191,7 +114,7 @@ async function initialize() {
     if (session) await activateSession(session);
     else showAuth();
   } catch (error) {
-    authStatus.textContent = readableError(error);
+    elements.authStatus.textContent = readableError(error);
   }
 
   db.onAuthChange((session) => {
@@ -202,25 +125,64 @@ async function initialize() {
   });
 }
 
+async function signIn(event) {
+  event.preventDefault();
+  elements.authStatus.textContent = "Accesso...";
+  try {
+    const session = await db.signIn(elements.authEmail.value.trim(), elements.authPassword.value);
+    if (session) await activateSession(session);
+  } catch (error) {
+    elements.authStatus.textContent = readableError(error);
+  }
+}
+
+async function signUp() {
+  if (!elements.authForm.reportValidity()) return;
+  elements.authStatus.textContent = "Creazione account...";
+  try {
+    const result = await db.signUp(elements.authEmail.value.trim(), elements.authPassword.value);
+    if (result.session) await activateSession(result.session);
+    else elements.authStatus.textContent = "Controlla la tua email per confermare l'account, poi accedi.";
+  } catch (error) {
+    elements.authStatus.textContent = readableError(error);
+  }
+}
+
+async function signOut() {
+  try {
+    await db.signOut();
+    showAuth();
+  } catch (error) {
+    setSyncStatus(`Errore: ${readableError(error)}`);
+  }
+}
+
 async function activateSession(session) {
   if (activeUserId === session.user.id && profileId) return;
+  elements.authStatus.textContent = "Caricamento profilo...";
 
-  authStatus.textContent = "Caricamento profilo...";
   const profile = await db.loadProfile(defaults);
-  const events = await db.loadCycleEvents(profile.id);
+  const [events, observation] = await Promise.all([
+    db.loadCycleEvents(profile.id),
+    db.loadObservation(profile.id, todayKey)
+  ]);
 
   profileId = profile.id;
   activeUserId = session.user.id;
   state.cycleLength = profile.cycle_length;
   state.periodLength = profile.period_length;
   state.history = events.map((event) => event.start_date);
-  state.lastStart = state.history[0] ?? defaults.lastStart;
+  state.lastStart = state.history[0] ?? null;
+  state.observation = observation;
+  selectedDay = state.lastStart ? getCycleDay(parseLocalDate(state.lastStart), state.cycleLength) : null;
 
   syncInputs();
-  accountEmail.textContent = session.user.email;
-  authGate.hidden = true;
-  appShell.hidden = false;
-  authPassword.value = "";
+  populateObservation();
+  elements.accountEmail.textContent = session.user.email;
+  elements.accountInitial.textContent = (session.user.email?.[0] || "A").toUpperCase();
+  elements.authGate.hidden = true;
+  elements.appShell.hidden = false;
+  elements.authPassword.value = "";
   setSyncStatus("Sincronizzato");
   render();
 }
@@ -228,35 +190,299 @@ async function activateSession(session) {
 function showAuth() {
   activeUserId = null;
   profileId = null;
-  appShell.hidden = true;
-  authGate.hidden = false;
-  authStatus.textContent = "";
-  accountEmail.textContent = "";
+  elements.appShell.hidden = true;
+  elements.authGate.hidden = false;
+  elements.authStatus.textContent = "";
+  elements.accountEmail.textContent = "";
+}
+
+async function saveCycleSettings(event) {
+  event.preventDefault();
+  state.lastStart = elements.lastStart.value;
+  state.cycleLength = clamp(Number(elements.cycleLength.value), 21, 40);
+  state.periodLength = clamp(Number(elements.periodLength.value), 1, 10);
+  addHistoryDate(state.lastStart);
+
+  try {
+    setSyncStatus("Salvataggio...");
+    await db.saveSettings(profileId, state.cycleLength, state.periodLength);
+    await db.saveCycleStart(profileId, state.lastStart);
+    selectedDay = getCycleDay(parseLocalDate(state.lastStart), state.cycleLength);
+    render();
+    setSyncStatus("Salvato");
+  } catch (error) {
+    setSyncStatus(`Errore: ${readableError(error)}`);
+  }
+}
+
+async function markTodayAsStart() {
+  state.lastStart = todayKey;
+  addHistoryDate(todayKey);
+  syncInputs();
+  try {
+    setSyncStatus("Salvataggio...");
+    await db.saveSettings(profileId, state.cycleLength, state.periodLength);
+    await db.saveCycleStart(profileId, todayKey);
+    selectedDay = 1;
+    render();
+    setSyncStatus("Salvato");
+  } catch (error) {
+    setSyncStatus(`Errore: ${readableError(error)}`);
+  }
+}
+
+async function saveDailyObservation(event) {
+  event.preventDefault();
+  elements.observationStatus.textContent = "Salvataggio...";
+  const observation = {
+    date: todayKey,
+    energy: Number(elements.energyInput.value),
+    mood: Number(elements.moodInput.value),
+    libido: Number(elements.libidoInput.value),
+    irritability: Number(elements.irritabilityInput.value),
+    pain: Number(elements.painInput.value),
+    notes: elements.notesInput.value.trim() || null
+  };
+
+  try {
+    state.observation = await db.saveObservation(profileId, observation);
+    populateObservation();
+    elements.observationStatus.textContent = "Salvata nel diario";
+    setSyncStatus("Sincronizzato");
+  } catch (error) {
+    elements.observationStatus.textContent = `Errore: ${readableError(error)}`;
+  }
+}
+
+async function clearProfile() {
+  const confirmed = window.confirm("Cancellare dal database tutte le date e le osservazioni del profilo?");
+  if (!confirmed) return;
+  try {
+    setSyncStatus("Cancellazione...");
+    await db.clearProfileData(profileId, defaults);
+    Object.assign(state, { ...defaults, history: [], observation: null });
+    selectedDay = null;
+    syncInputs();
+    populateObservation();
+    render();
+    setSyncStatus("Dati cancellati");
+  } catch (error) {
+    setSyncStatus(`Errore: ${readableError(error)}`);
+  }
+}
+
+async function importHistory() {
+  const file = elements.historyFile.files[0];
+  if (!file) {
+    elements.importStatus.textContent = "Seleziona prima un file CSV.";
+    return;
+  }
+  elements.importStatus.textContent = "Lettura e controllo...";
+
+  try {
+    const parsed = window.Papa.parse(await file.text(), {
+      header: true,
+      skipEmptyLines: "greedy",
+      transformHeader: (header) => header.trim().toLowerCase()
+    });
+    if (parsed.errors.length > 0) throw new Error(parsed.errors[0].message);
+
+    const normalized = normalizeHistoricalRows(parsed.data);
+    await db.importHistory(profileId, normalized.cycleStarts, normalized.observations);
+    const [events, observation] = await Promise.all([
+      db.loadCycleEvents(profileId),
+      db.loadObservation(profileId, todayKey)
+    ]);
+    state.history = events.map((item) => item.start_date);
+    state.lastStart = state.history[0] ?? null;
+    state.observation = observation;
+    selectedDay = state.lastStart ? getCycleDay(parseLocalDate(state.lastStart), state.cycleLength) : null;
+    syncInputs();
+    populateObservation();
+    render();
+    elements.historyFile.value = "";
+    elements.importStatus.textContent = `${normalized.total} righe importate.`;
+  } catch (error) {
+    elements.importStatus.textContent = `Errore: ${readableError(error)}`;
+  }
+}
+
+function render() {
+  const cycleLength = clamp(Number(state.cycleLength), 21, 40);
+  const periodLength = clamp(Number(state.periodLength), 1, 10);
+  const hasCycle = Boolean(state.lastStart);
+  const lastStart = hasCycle ? parseLocalDate(state.lastStart) : null;
+  const currentDay = hasCycle ? getCycleDay(lastStart, cycleLength) : null;
+
+  if (!selectedDay || selectedDay > cycleLength) selectedDay = currentDay;
+  renderTimeline(cycleLength, periodLength, currentDay);
+
+  if (!hasCycle) {
+    document.body.className = "phase-follicular";
+    elements.dayContext.textContent = "Oggi";
+    elements.todayDay.textContent = "-";
+    elements.phaseTitle.textContent = "Imposta una data";
+    elements.phaseDescription.textContent = "Registra l'ultimo inizio delle mestruazioni per visualizzare una stima del ciclo.";
+    elements.trendDay.textContent = "Ciclo non impostato";
+    elements.trendPhase.textContent = "In attesa dei dati";
+    elements.trendLabel.textContent = "Andamento orientativo";
+    elements.trendText.textContent = "Le osservazioni quotidiane renderanno il quadro piu personale nel tempo.";
+    elements.nextPeriod.textContent = "-";
+    elements.daysUntil.textContent = "-";
+    elements.fertileWindow.textContent = "-";
+    renderHistory();
+    return;
+  }
+
+  const displayedDay = selectedDay || currentDay;
+  const phase = getPhase(displayedDay, periodLength, cycleLength);
+  const selectedIsToday = displayedDay === currentDay;
+  const nextStart = addDays(lastStart, cycleLength);
+  const ovulationDay = Math.max(1, cycleLength - 14);
+  const fertileStart = addDays(lastStart, Math.max(0, ovulationDay - 5));
+  const fertileEnd = addDays(lastStart, ovulationDay);
+
+  document.body.className = phase.className;
+  elements.dayContext.textContent = selectedIsToday ? "Oggi" : "Anteprima";
+  elements.todayDay.textContent = displayedDay;
+  elements.phaseTitle.textContent = phase.label;
+  elements.phaseDescription.textContent = phase.description;
+  elements.trendDay.textContent = `Giorno ${displayedDay}`;
+  elements.trendPhase.textContent = phase.label;
+  elements.trendLabel.textContent = phase.trend;
+  elements.trendText.textContent = phase.guidance;
+  elements.nextPeriod.textContent = formatDate(nextStart);
+  elements.daysUntil.textContent = getDaysUntil(nextStart);
+  elements.fertileWindow.textContent = `${formatShortDate(fertileStart)} - ${formatShortDate(fertileEnd)}`;
+  renderHistory();
+}
+
+function renderTimeline(cycleLength, periodLength, currentDay) {
+  elements.timeline.innerHTML = "";
+  for (let day = 1; day <= cycleLength; day += 1) {
+    const button = document.createElement("button");
+    const phase = getPhase(day, periodLength, cycleLength);
+    button.type = "button";
+    button.className = "timeline-day";
+    button.textContent = day;
+    button.setAttribute("aria-label", `Giorno ${day}, ${phase.label}`);
+    if (day === currentDay) button.classList.add("is-current");
+    if (day === selectedDay) button.classList.add("is-selected");
+    button.addEventListener("click", () => {
+      selectedDay = day;
+      render();
+    });
+    elements.timeline.appendChild(button);
+  }
+
+  window.requestAnimationFrame(() => {
+    const selected = elements.timeline.querySelector(".is-selected");
+    const wrap = elements.timeline.parentElement;
+    if (selected && wrap.scrollWidth > wrap.clientWidth) {
+      wrap.scrollLeft = selected.offsetLeft - wrap.clientWidth / 2 + selected.clientWidth / 2;
+    }
+  });
+}
+
+function getPhase(day, periodLength, cycleLength) {
+  const ovulationDay = Math.max(1, cycleLength - 14);
+  const fertileStart = Math.max(periodLength + 1, ovulationDay - 5);
+
+  if (day <= periodLength) {
+    return {
+      label: "Mestruazione",
+      className: "phase-period",
+      description: "Energia e sensibilita possono variare. Comfort e ascolto sono una buona base.",
+      trend: "Ritmo personale",
+      guidance: "Chiedi come sta e lascia spazio a cio che desidera davvero oggi."
+    };
+  }
+  if (day >= fertileStart && day < ovulationDay) {
+    return {
+      label: "Finestra fertile stimata",
+      className: "phase-fertile",
+      description: "In alcune persone energia e desiderio possono aumentare, ma non e una regola.",
+      trend: "Possibile slancio",
+      guidance: "Un invito aperto funziona meglio di un'aspettativa: la risposta reale viene prima della stima."
+    };
+  }
+  if (day === ovulationDay) {
+    return {
+      label: "Ovulazione stimata",
+      className: "phase-ovulation",
+      description: "Un momento biologicamente significativo, calcolato soltanto in modo orientativo.",
+      trend: "Picco stimato",
+      guidance: "Osserva energia, umore e desiderio senza considerarli automatici."
+    };
+  }
+  if (day > ovulationDay) {
+    const late = day > cycleLength - 6;
+    return {
+      label: "Fase luteale",
+      className: "phase-luteal",
+      description: late
+        ? "Verso la fine del ciclo possono comparire maggiore sensibilita o bisogno di spazio."
+        : "Il ritmo puo diventare piu variabile mentre il corpo si avvicina al ciclo successivo.",
+      trend: late ? "Sensibilita possibile" : "Ritmo variabile",
+      guidance: late
+        ? "Riduci le supposizioni: ascolto, chiarezza e gentilezza aiutano piu di qualsiasi previsione."
+        : "Mantieni le proposte leggere e facili da accettare, modificare o rifiutare."
+    };
+  }
+  return {
+    label: "Fase follicolare",
+    className: "phase-follicular",
+    description: "Energia in possibile crescita e passaggio graduale verso la fase fertile.",
+    trend: "Possibile ripresa",
+    guidance: "Puoi proporre qualcosa con leggerezza, verificando sempre come si sente davvero."
+  };
+}
+
+function populateObservation() {
+  const observation = state.observation;
+  const fields = ["energy", "mood", "libido", "irritability", "pain"];
+  fields.forEach((field) => {
+    elements[`${field}Input`].value = observation?.[field] ?? 0;
+  });
+  elements.notesInput.value = observation?.notes ?? "";
+  elements.energyOutput.textContent = observation ? scoreLabels.energy[observation.energy] : "Non registrata";
+  elements.moodOutput.textContent = observation ? scoreLabels.mood[observation.mood] : "Non registrato";
+  elements.libidoOutput.textContent = observation ? scoreLabels.libido[observation.libido] : "Non registrata";
+  elements.irritabilityOutput.textContent = observation?.irritability ?? "0";
+  elements.painOutput.textContent = observation?.pain ?? "0";
+  elements.observationStatus.textContent = observation ? "Osservazione gia salvata" : "Ancora da compilare";
 }
 
 function syncInputs() {
-  lastStartInput.value = state.lastStart;
-  cycleLengthInput.value = state.cycleLength;
-  periodLengthInput.value = state.periodLength;
+  elements.lastStart.value = state.lastStart ?? "";
+  elements.cycleLength.value = state.cycleLength;
+  elements.periodLength.value = state.periodLength;
 }
 
-function setSyncStatus(message) {
-  syncStatus.textContent = message;
+function renderHistory() {
+  const history = [...new Set(state.history)].sort().reverse();
+  elements.historyList.innerHTML = "";
+  if (history.length === 0) {
+    const item = document.createElement("li");
+    item.textContent = "Nessuna data salvata";
+    elements.historyList.appendChild(item);
+    return;
+  }
+  history.slice(0, 12).forEach((date) => {
+    const item = document.createElement("li");
+    item.textContent = formatDate(parseLocalDate(date));
+    elements.historyList.appendChild(item);
+  });
 }
 
 function normalizeHistoricalRows(rows) {
   const cycleStarts = [];
   const observations = [];
-
   rows.forEach((row, index) => {
     const line = index + 2;
     const date = String(row.date ?? "").trim();
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      throw new Error(`Data non valida alla riga ${line}. Usa AAAA-MM-GG.`);
-    }
-
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error(`Data non valida alla riga ${line}. Usa AAAA-MM-GG.`);
     if (isCsvTrue(row.period_start)) cycleStarts.push(date);
-
     const observation = {
       date,
       mood: csvScore(row.mood, line, "mood"),
@@ -266,24 +492,9 @@ function normalizeHistoricalRows(rows) {
       pain: csvScore(row.pain, line, "pain"),
       notes: String(row.notes ?? "").trim() || null
     };
-
-    const hasObservation = [
-      observation.mood,
-      observation.libido,
-      observation.energy,
-      observation.irritability,
-      observation.pain,
-      observation.notes
-    ].some((value) => value !== null);
-
-    if (hasObservation) observations.push(observation);
+    if (Object.values(observation).some((value) => value !== null && value !== date)) observations.push(observation);
   });
-
-  return {
-    cycleStarts: [...new Set(cycleStarts)],
-    observations,
-    total: rows.length
-  };
+  return { cycleStarts: [...new Set(cycleStarts)], observations, total: rows.length };
 }
 
 function isCsvTrue(value) {
@@ -294,259 +505,23 @@ function csvScore(value, line, field) {
   const text = String(value ?? "").trim();
   if (text === "") return null;
   const number = Number(text);
-  if (!Number.isInteger(number) || number < 0 || number > 5) {
-    throw new Error(`${field} deve essere da 0 a 5 alla riga ${line}.`);
-  }
+  if (!Number.isInteger(number) || number < 0 || number > 5) throw new Error(`${field} deve essere da 0 a 5 alla riga ${line}.`);
   return number;
 }
 
-function render() {
-  wheel.innerHTML = "";
-
-  const cycleLength = clamp(Number(state.cycleLength), 21, 40);
-  const periodLength = clamp(Number(state.periodLength), 1, 10);
-  const lastStart = parseLocalDate(state.lastStart);
-  const currentCycleDay = getCycleDay(lastStart, cycleLength);
-  const todayPhaseInfo = getPhase(currentCycleDay, periodLength, cycleLength);
-  const todayFunProfile = getFunProfile(currentCycleDay, periodLength, cycleLength);
-
-  if (!selectedDay || selectedDay > cycleLength) selectedDay = currentCycleDay;
-
-  for (let day = 1; day <= cycleLength; day += 1) {
-    const node = document.createElement("button");
-    const phase = getPhase(day, periodLength, cycleLength);
-    const angle = ((day - 1) / cycleLength) * 360;
-    const radians = (angle * Math.PI) / 180;
-    const radius = 45;
-
-    node.type = "button";
-    node.className = `day-node ${phase.className}`;
-    node.style.left = `${50 + Math.sin(radians) * radius}%`;
-    node.style.top = `${50 - Math.cos(radians) * radius}%`;
-    node.setAttribute("aria-label", `Giorno ${day}, ${phase.label}`);
-    node.innerHTML = `<span>${day}</span>`;
-
-    if (day === currentCycleDay) node.classList.add("is-today");
-    if (day === selectedDay) node.classList.add("is-selected");
-    if (day === 1) node.classList.add("is-start");
-
-    node.addEventListener("click", () => {
-      selectedDay = day;
-      document.querySelectorAll(".day-node").forEach((item) => item.classList.remove("is-selected"));
-      node.classList.add("is-selected");
-      renderPlayCard(day, periodLength, cycleLength, currentCycleDay);
-    });
-
-    wheel.appendChild(node);
-  }
-
-  const nextStart = addDays(lastStart, cycleLength);
-  const ovulationDay = Math.max(1, cycleLength - 14);
-  const fertileStart = addDays(lastStart, Math.max(0, ovulationDay - 5));
-  const fertileEnd = addDays(lastStart, ovulationDay);
-
-  todayDay.textContent = currentCycleDay;
-  todayPhase.textContent = todayPhaseInfo.label;
-  todayHeat.textContent = todayFunProfile.level;
-  nextPeriod.textContent = formatDate(nextStart);
-  daysUntil.textContent = getDaysUntil(nextStart);
-  fertileWindow.textContent = `${formatShortDate(fertileStart)} - ${formatShortDate(fertileEnd)}`;
-  renderPlayCard(selectedDay, periodLength, cycleLength, currentCycleDay);
-  renderHistory();
-}
-
-function renderPlayCard(day, periodLength, cycleLength, currentCycleDay) {
-  const profile = getFunProfile(day, periodLength, cycleLength);
-  activeSuggestions = profile.suggestions;
-  suggestionIndex = day % activeSuggestions.length;
-
-  playDayLabel.textContent = day === currentCycleDay ? "Spunto di oggi" : `Anteprima giorno ${day}`;
-  funLevel.textContent = profile.level;
-  funNote.textContent = profile.note;
-  suggestionText.textContent = activeSuggestions[suggestionIndex];
-}
-
-function getFunProfile(day, periodLength, cycleLength) {
-  const ovulationDay = Math.max(1, cycleLength - 14);
-  const fertileStart = Math.max(periodLength + 1, ovulationDay - 5);
-
-  if (day <= periodLength) {
-    return {
-      level: "Dolce e senza pressione",
-      note: "Comfort, vicinanza e ascolto possono essere piu invitanti di un programma intenso.",
-      suggestions: [
-        "Proponi una doccia calda insieme, poi lasciate decidere al momento se fermarvi alle coccole.",
-        "Massaggio lento a turno: chi lo riceve decide ritmo, zona e quando fermarsi.",
-        "Prepara una serata comoda e chiedile quale tipo di contatto le farebbe piacere oggi."
-      ]
-    };
-  }
-
-  if (day < fertileStart) {
-    return {
-      level: "Pepe in aumento",
-      note: "Dopo le mestruazioni energia e desiderio possono salire: buon momento per lanciare un invito malizioso.",
-      suggestions: [
-        "Mandale un messaggio malizioso durante il giorno e falle scegliere come continuare la sera.",
-        "Ognuno scrive un desiderio segreto: pescatene uno e decidete insieme se provarlo.",
-        "Proponi una serata senza telefoni, musica scelta da lei e baci senza fretta.",
-        "Invitala a scegliere un outfit, un luogo o una piccola fantasia da esplorare insieme."
-      ]
-    };
-  }
-
-  if (day < ovulationDay) {
-    return {
-      level: "Terreno piccante",
-      note: "La finestra fertile puo coincidere con piu desiderio e iniziativa, ma la risposta vera la da sempre lei.",
-      suggestions: [
-        "Gioco dei tre desideri: uno romantico, uno sensuale e uno decisamente audace.",
-        "Falle scegliere musica e ritmo; tu prepari una sorpresa e lei mantiene il diritto di cambiare idea.",
-        "Organizza un appuntamento in casa con una regola: ogni portata sblocca una domanda piu maliziosa.",
-        "Proponi una sfida lenta: niente fretta, chi cede per primo sceglie la prossima mossa."
-      ]
-    };
-  }
-
-  if (day === ovulationDay) {
-    return {
-      level: "Massimo tasso di pepe",
-      note: "Picco solo stimato: se l'intesa c'e, e una buona serata per una proposta piu coraggiosa.",
-      suggestions: [
-        "Carta bianca condivisa: raccontate una fantasia ciascuno e sceglietene una che entusiasmi entrambi.",
-        "Benda, musica e turno di comando, concordando prima una parola per fermarsi.",
-        "Preparate una sorpresa reciproca e rivelatela solo quando entrambi dite si al gioco.",
-        "Fatele trovare un invito: luogo, ora e due opzioni piccanti tra cui scegliere."
-      ]
-    };
-  }
-
-  const isLateLuteal = day > cycleLength - 5;
-  return {
-    level: isLateLuteal ? "Ritmo morbido" : "Pepe variabile",
-    note: isLateLuteal
-      ? "Nei giorni finali sensibilita e desiderio possono cambiare: meglio invitare senza aspettative."
-      : "Il desiderio puo restare vivace oppure rallentare. Una proposta flessibile funziona meglio.",
-    suggestions: [
-      "Proponi un massaggio con possibilita di continuare, ma rendi bellissimo anche fermarsi li.",
-      "Chiedile: stasera preferisci coccole, gioco o sorpresa? Poi segui davvero la risposta.",
-      "Create una lista si, forse, non oggi e scegliete insieme solo dalla prima colonna.",
-      "Serata lenta: luci basse, qualcosa di buono e nessun obiettivo oltre allo stare bene."
-    ]
-  };
-}
-
-function renderHistory() {
-  const history = [...new Set(state.history)].sort().reverse();
-  historyList.innerHTML = "";
-
-  if (history.length === 0) {
-    const item = document.createElement("li");
-    item.textContent = "Nessuna data salvata";
-    historyList.appendChild(item);
-    return;
-  }
-
-  history.slice(0, 8).forEach((date) => {
-    const item = document.createElement("li");
-    item.textContent = formatDate(parseLocalDate(date));
-    historyList.appendChild(item);
-  });
-}
-
-function getPhase(day, periodLength, cycleLength) {
-  const ovulationDay = Math.max(1, cycleLength - 14);
-  const fertileStart = Math.max(periodLength + 1, ovulationDay - 5);
-
-  if (day <= periodLength) {
-    return { label: "Mestruazione", className: "phase-period" };
-  }
-
-  if (day >= fertileStart && day < ovulationDay) {
-    return { label: "Finestra fertile stimata", className: "phase-fertile" };
-  }
-
-  if (day === ovulationDay) {
-    return { label: "Ovulazione stimata", className: "phase-ovulation" };
-  }
-
-  if (day > ovulationDay) {
-    return { label: "Fase luteale", className: "phase-luteal" };
-  }
-
-  return { label: "Fase follicolare", className: "phase-follicular" };
-}
-
-function getCycleDay(lastStart, cycleLength) {
-  const today = startOfDay(new Date());
-  const elapsed = Math.floor((today - startOfDay(lastStart)) / MS_PER_DAY);
-  return positiveModulo(elapsed, cycleLength) + 1;
-}
-
-function getDaysUntil(date) {
-  const diff = Math.ceil((startOfDay(date) - startOfDay(new Date())) / MS_PER_DAY);
-  if (diff === 0) return "Oggi";
-  if (diff === 1) return "Domani";
-  if (diff < 0) return "Da aggiornare";
-  return `${diff} giorni`;
-}
-
 function addHistoryDate(date) {
-  if (!date) return;
-  state.history = [...new Set([date, ...state.history])].slice(0, 24);
+  if (date) state.history = [...new Set([date, ...state.history])].slice(0, 24);
 }
 
-async function saveState() {
-  if (!db || !profileId) throw new Error("Profilo non disponibile");
-  await db.saveSettings(profileId, state.cycleLength, state.periodLength);
-  await db.saveCycleStart(profileId, state.lastStart);
-}
-
-function readableError(error) {
-  return error?.message || "Operazione non riuscita";
-}
-
-function parseLocalDate(value) {
-  const [year, month, day] = value.split("-").map(Number);
-  return new Date(year, month - 1, day);
-}
-
-function toInputDate(date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function addDays(date, days) {
-  const next = new Date(date);
-  next.setDate(next.getDate() + days);
-  return next;
-}
-
-function startOfDay(date) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-}
-
-function formatDate(date) {
-  return new Intl.DateTimeFormat("it-IT", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric"
-  }).format(date);
-}
-
-function formatShortDate(date) {
-  return new Intl.DateTimeFormat("it-IT", {
-    day: "2-digit",
-    month: "short"
-  }).format(date);
-}
-
-function positiveModulo(value, divisor) {
-  return ((value % divisor) + divisor) % divisor;
-}
-
-function clamp(value, min, max) {
-  return Math.min(Math.max(value || min, min), max);
-}
+function setSyncStatus(message) { elements.syncStatus.textContent = message; }
+function readableError(error) { return error?.message || "Operazione non riuscita"; }
+function parseLocalDate(value) { const [year, month, day] = value.split("-").map(Number); return new Date(year, month - 1, day); }
+function toInputDate(date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`; }
+function addDays(date, days) { const next = new Date(date); next.setDate(next.getDate() + days); return next; }
+function startOfDay(date) { return new Date(date.getFullYear(), date.getMonth(), date.getDate()); }
+function getCycleDay(lastStart, length) { return positiveModulo(Math.floor((startOfDay(new Date()) - startOfDay(lastStart)) / MS_PER_DAY), length) + 1; }
+function positiveModulo(value, divisor) { return ((value % divisor) + divisor) % divisor; }
+function clamp(value, min, max) { return Math.min(Math.max(value || min, min), max); }
+function getDaysUntil(date) { const diff = Math.ceil((startOfDay(date) - startOfDay(new Date())) / MS_PER_DAY); if (diff === 0) return "Oggi"; if (diff === 1) return "Domani"; if (diff < 0) return "Da aggiornare"; return `${diff} giorni`; }
+function formatDate(date) { return new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "long", year: "numeric" }).format(date); }
+function formatShortDate(date) { return new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "short" }).format(date); }

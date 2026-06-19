@@ -72,6 +72,42 @@
       return data ?? [];
     },
 
+    async loadObservation(profileId, observationDate) {
+      const { data, error } = await client
+        .from("daily_observations")
+        .select("observation_date,mood,libido,energy,irritability,pain,notes")
+        .eq("profile_id", profileId)
+        .eq("observation_date", observationDate)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data;
+    },
+
+    async saveObservation(profileId, observation) {
+      const { data, error } = await client
+        .from("daily_observations")
+        .upsert(
+          {
+            profile_id: profileId,
+            observation_date: observation.date,
+            mood: observation.mood,
+            libido: observation.libido,
+            energy: observation.energy,
+            irritability: observation.irritability,
+            pain: observation.pain,
+            notes: observation.notes,
+            source: "manual"
+          },
+          { onConflict: "profile_id,observation_date" }
+        )
+        .select("observation_date,mood,libido,energy,irritability,pain,notes")
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+
     async saveSettings(profileId, cycleLength, periodLength) {
       const { error } = await client
         .from("profiles")

@@ -3,143 +3,164 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>A Due - Ruota del divertimento</title>
-    <meta name="theme-color" content="#11100f">
-    <meta
-      name="description"
-      content="Una ruota di coppia per seguire il ciclo e trovare idee di intimità consensuale."
-    >
+    <title>A Due - Diario del ciclo</title>
+    <meta name="theme-color" content="#f1efe7">
+    <meta name="description" content="Un diario privato per osservare il ciclo con rispetto e consapevolezza.">
     <link rel="stylesheet" href="styles.css">
   </head>
-  <body>
+  <body class="phase-follicular">
     <section class="auth-gate" id="authGate" aria-labelledby="auth-title">
       <div class="auth-panel">
+        <div class="brand-mark" aria-hidden="true">A</div>
         <p class="eyebrow">A Due / Archivio privato</p>
-        <h1 id="auth-title">Accesso riservato</h1>
-        <p>I dati del profilo sono disponibili soltanto dopo l'accesso.</p>
+        <h1 id="auth-title">Bentornato</h1>
+        <p>Accedi al tuo diario personale. I dati sono visibili soltanto dal tuo account.</p>
         <form id="authForm" class="auth-form">
-          <label>
-            <span>Email</span>
-            <input id="authEmail" type="email" autocomplete="email" required>
-          </label>
-          <label>
-            <span>Password</span>
-            <input id="authPassword" type="password" autocomplete="current-password" minlength="8" required>
-          </label>
-          <button type="submit">Accedi</button>
-          <button id="signUp" type="button" class="secondary">Crea account</button>
+          <label><span>Email</span><input id="authEmail" type="email" autocomplete="email" required></label>
+          <label><span>Password</span><input id="authPassword" type="password" autocomplete="current-password" minlength="8" required></label>
+          <div class="auth-actions">
+            <button type="submit">Accedi</button>
+            <button id="signUp" type="button" class="secondary">Crea account</button>
+          </div>
         </form>
         <p class="auth-status" id="authStatus" role="status"></p>
       </div>
     </section>
 
     <main class="app-shell" id="appShell" hidden>
-      <section class="topbar" aria-labelledby="app-title">
-        <div>
-          <p class="eyebrow">Ruota del divertimento / Private edition</p>
-          <h1 id="app-title">A Due</h1>
-        </div>
+      <header class="topbar">
+        <a class="brand" href="#today" aria-label="A Due, oggi">
+          <span class="brand-mark" aria-hidden="true">A</span>
+          <span>A Due</span>
+        </a>
+        <time class="current-month" id="currentMonth"></time>
         <div class="account-panel">
-          <div class="privacy-note">Stime orientative. Desiderio e ciclo sono personali.</div>
-          <span id="accountEmail"></span>
+          <span class="sync-dot" aria-hidden="true"></span>
           <span id="syncStatus" role="status"></span>
-          <button id="signOut" type="button" class="account-signout">Esci</button>
-        </div>
-      </section>
-
-      <section class="layout">
-        <div class="wheel-panel" aria-label="Ruota del ciclo mestruale">
-          <div class="phase-label phase-label-top">Divertimento in salita</div>
-          <div class="phase-label phase-label-bottom">Ritmo piu morbido</div>
-          <div class="wheel-wrap">
-            <div class="cycle-wheel" id="cycleWheel"></div>
-            <div class="wheel-center">
-              <span class="center-kicker">Oggi, giorno</span>
-              <strong id="todayDay">-</strong>
-              <span id="todayPhase">Imposta una data</span>
-              <span class="heat-badge" id="todayHeat">-</span>
+          <details class="account-menu">
+            <summary aria-label="Menu account"><span id="accountInitial">A</span></summary>
+            <div class="account-popover">
+              <span id="accountEmail"></span>
+              <button id="signOut" type="button" class="text-button">Esci</button>
             </div>
-          </div>
-        </div>
-
-        <aside class="control-panel" aria-label="Controlli della ruota">
-          <section class="play-card" aria-labelledby="play-title">
-            <p class="eyebrow" id="playDayLabel">Spunto di oggi</p>
-            <h2 id="play-title">Possibilita di gioco</h2>
-            <strong class="fun-level" id="funLevel">-</strong>
-            <p class="fun-note" id="funNote">Imposta una data per iniziare.</p>
-            <div class="suggestion-box">
-              <span>Proposta maliziosa</span>
-              <p id="suggestionText">-</p>
-            </div>
-            <button id="newSuggestion" type="button">Cambia proposta</button>
-            <small>Prima chiedi, poi giocate: deve piacere a entrambi.</small>
-          </section>
-
-          <details class="settings-box">
-            <summary>Regola il ciclo</summary>
-            <form id="settingsForm" class="form-grid">
-              <label>
-                <span>Ultimo inizio mestruazione</span>
-                <input id="lastStart" type="date" required>
-              </label>
-              <label>
-                <span>Durata ciclo</span>
-                <input id="cycleLength" type="number" min="21" max="40" value="28">
-              </label>
-              <label>
-                <span>Giorni di mestruazione</span>
-                <input id="periodLength" type="number" min="1" max="10" value="5">
-              </label>
-              <button type="submit">Aggiorna ruota</button>
-            </form>
           </details>
+        </div>
+      </header>
 
-          <details class="settings-box import-box">
-            <summary>Importa dati storici</summary>
-            <p>Usa il modello CSV con una riga per ogni giorno osservato.</p>
-            <a class="template-link" href="supabase/history-template.csv" download>Scarica modello CSV</a>
-            <input id="historyFile" type="file" accept=".csv,text/csv">
-            <button id="importHistory" type="button">Importa nel database</button>
-            <span class="import-status" id="importStatus" role="status"></span>
-          </details>
+      <section class="dashboard" id="today" aria-labelledby="phaseTitle">
+        <div class="ambient-shade" aria-hidden="true"></div>
 
-          <div class="summary-grid">
-            <div>
-              <span>Prossimo ciclo</span>
-              <strong id="nextPeriod">-</strong>
-            </div>
-            <div>
-              <span>Giorni mancanti</span>
-              <strong id="daysUntil">-</strong>
-            </div>
-            <div>
-              <span>Finestra fertile stimata</span>
-              <strong id="fertileWindow">-</strong>
-            </div>
-          </div>
-
-          <div class="actions">
-            <button id="markToday" type="button">Segna oggi come inizio</button>
-            <button id="clearData" type="button" class="secondary">Cancella dati</button>
-          </div>
-
-          <section class="legend" aria-label="Legenda fasi">
-            <div><span class="dot period"></span>Cura e comfort</div>
-            <div><span class="dot follicular"></span>Desiderio in salita</div>
-            <div><span class="dot fertile"></span>Terreno piccante</div>
-            <div><span class="dot ovulation"></span>Picco stimato</div>
-            <div><span class="dot luteal"></span>Ritmo variabile</div>
-          </section>
+        <aside class="trend-card" aria-label="Indicazione della fase">
+          <span class="trend-day" id="trendDay">Giorno -</span>
+          <strong id="trendPhase">Imposta il ciclo</strong>
+          <div class="trend-divider"></div>
+          <span class="trend-label" id="trendLabel">Andamento orientativo</span>
+          <p id="trendText">Registra la data di inizio per visualizzare la fase stimata.</p>
         </aside>
-      </section>
 
-      <section class="history-panel" aria-labelledby="history-title">
-        <div>
-          <p class="eyebrow">Storico</p>
-          <h2 id="history-title">Date segnate</h2>
+        <div class="hero">
+          <span class="hero-kicker" id="dayContext">Oggi</span>
+          <div class="day-orb" aria-live="polite">
+            <strong id="todayDay">-</strong>
+            <span aria-hidden="true"></span>
+          </div>
+
+          <div class="timeline-wrap" aria-label="Giorni del ciclo">
+            <div class="timeline" id="cycleTimeline"></div>
+          </div>
+
+          <div class="phase-copy">
+            <h1 id="phaseTitle">Imposta una data</h1>
+            <span class="phase-symbol" aria-hidden="true">&#10047;</span>
+            <p id="phaseDescription">Il ciclo e l'esperienza personale non coincidono sempre: osservare vale piu che presumere.</p>
+          </div>
         </div>
-        <ul id="historyList" class="history-list"></ul>
+
+        <form class="daily-checkin" id="dailyForm">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Osservazione di oggi</p>
+              <h2>Segnali registrati</h2>
+            </div>
+            <span id="observationStatus" role="status"></span>
+          </div>
+
+          <div class="metrics-grid">
+            <label class="metric-card">
+              <span class="metric-title">Energia</span>
+              <output id="energyOutput">Non registrata</output>
+              <input id="energyInput" name="energy" type="range" min="0" max="5" step="1" value="0">
+              <small>Da molto bassa a molto alta</small>
+            </label>
+
+            <label class="metric-card">
+              <span class="metric-title">Umore</span>
+              <output id="moodOutput">Non registrato</output>
+              <input id="moodInput" name="mood" type="range" min="0" max="5" step="1" value="0">
+              <small>Da difficile a molto positivo</small>
+            </label>
+
+            <label class="metric-card">
+              <span class="metric-title">Libido</span>
+              <output id="libidoOutput">Non registrata</output>
+              <input id="libidoInput" name="libido" type="range" min="0" max="5" step="1" value="0">
+              <small>Una nota, non una previsione</small>
+            </label>
+
+            <label class="note-card">
+              <span class="metric-title">Note del giorno</span>
+              <textarea id="notesInput" rows="4" placeholder="Scrivi soltanto cio che avete scelto di osservare insieme..."></textarea>
+              <small>Informazioni private, salvate nel tuo archivio.</small>
+            </label>
+          </div>
+
+          <details class="more-signals">
+            <summary>Altri segnali</summary>
+            <div class="secondary-signals">
+              <label><span>Irritabilita</span><input id="irritabilityInput" type="range" min="0" max="5" value="0"><output id="irritabilityOutput">0</output></label>
+              <label><span>Dolore</span><input id="painInput" type="range" min="0" max="5" value="0"><output id="painOutput">0</output></label>
+            </div>
+          </details>
+
+          <button class="save-observation" type="submit">Salva osservazione</button>
+        </form>
+
+        <details class="cycle-details">
+          <summary>Dettagli ciclo</summary>
+          <div class="details-content">
+            <form id="settingsForm" class="settings-form">
+              <label><span>Ultimo inizio mestruazione</span><input id="lastStart" type="date" required></label>
+              <label><span>Durata ciclo</span><input id="cycleLength" type="number" min="21" max="40" value="28"></label>
+              <label><span>Giorni di mestruazione</span><input id="periodLength" type="number" min="1" max="10" value="5"></label>
+              <button type="submit">Aggiorna</button>
+              <button id="markToday" type="button" class="secondary">Inizio oggi</button>
+            </form>
+
+            <div class="cycle-summary">
+              <div><span>Prossimo ciclo stimato</span><strong id="nextPeriod">-</strong></div>
+              <div><span>Giorni mancanti</span><strong id="daysUntil">-</strong></div>
+              <div><span>Finestra fertile stimata</span><strong id="fertileWindow">-</strong></div>
+            </div>
+
+            <div class="history-block">
+              <h3>Date registrate</h3>
+              <ul id="historyList" class="history-list"></ul>
+            </div>
+
+            <div class="import-block">
+              <h3>Importa dati storici</h3>
+              <p>Usa il modello CSV con una riga per ogni giorno osservato.</p>
+              <a href="supabase/history-template.csv" download>Scarica modello CSV</a>
+              <input id="historyFile" type="file" accept=".csv,text/csv">
+              <button id="importHistory" type="button" class="secondary">Importa</button>
+              <span id="importStatus" role="status"></span>
+            </div>
+
+            <button id="clearData" type="button" class="danger-button">Cancella tutti i dati</button>
+          </div>
+        </details>
+
+        <p class="disclaimer">Le fasi sono stime orientative, non indicazioni mediche. Il vissuto reale e il consenso vengono sempre prima.</p>
       </section>
     </main>
 

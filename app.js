@@ -22,6 +22,16 @@ const fertileWindow = document.querySelector("#fertileWindow");
 const historyList = document.querySelector("#historyList");
 const markToday = document.querySelector("#markToday");
 const clearData = document.querySelector("#clearData");
+const todayHeat = document.querySelector("#todayHeat");
+const playDayLabel = document.querySelector("#playDayLabel");
+const funLevel = document.querySelector("#funLevel");
+const funNote = document.querySelector("#funNote");
+const suggestionText = document.querySelector("#suggestionText");
+const newSuggestion = document.querySelector("#newSuggestion");
+
+let selectedDay = null;
+let activeSuggestions = [];
+let suggestionIndex = 0;
 
 lastStartInput.value = state.lastStart;
 cycleLengthInput.value = state.cycleLength;
@@ -54,6 +64,12 @@ clearData.addEventListener("click", () => {
   render();
 });
 
+newSuggestion.addEventListener("click", () => {
+  if (activeSuggestions.length === 0) return;
+  suggestionIndex = (suggestionIndex + 1) % activeSuggestions.length;
+  suggestionText.textContent = activeSuggestions[suggestionIndex];
+});
+
 render();
 
 function render() {
@@ -64,6 +80,9 @@ function render() {
   const lastStart = parseLocalDate(state.lastStart);
   const currentCycleDay = getCycleDay(lastStart, cycleLength);
   const todayPhaseInfo = getPhase(currentCycleDay, periodLength, cycleLength);
+  const todayFunProfile = getFunProfile(currentCycleDay, periodLength, cycleLength);
+
+  if (!selectedDay || selectedDay > cycleLength) selectedDay = currentCycleDay;
 
   for (let day = 1; day <= cycleLength; day += 1) {
     const node = document.createElement("button");
@@ -80,7 +99,15 @@ function render() {
     node.innerHTML = `<span>${day}</span>`;
 
     if (day === currentCycleDay) node.classList.add("is-today");
+    if (day === selectedDay) node.classList.add("is-selected");
     if (day === 1) node.classList.add("is-start");
+
+    node.addEventListener("click", () => {
+      selectedDay = day;
+      document.querySelectorAll(".day-node").forEach((item) => item.classList.remove("is-selected"));
+      node.classList.add("is-selected");
+      renderPlayCard(day, periodLength, cycleLength, currentCycleDay);
+    });
 
     wheel.appendChild(node);
   }
@@ -92,10 +119,93 @@ function render() {
 
   todayDay.textContent = currentCycleDay;
   todayPhase.textContent = todayPhaseInfo.label;
+  todayHeat.textContent = todayFunProfile.level;
   nextPeriod.textContent = formatDate(nextStart);
   daysUntil.textContent = getDaysUntil(nextStart);
   fertileWindow.textContent = `${formatShortDate(fertileStart)} - ${formatShortDate(fertileEnd)}`;
+  renderPlayCard(selectedDay, periodLength, cycleLength, currentCycleDay);
   renderHistory();
+}
+
+function renderPlayCard(day, periodLength, cycleLength, currentCycleDay) {
+  const profile = getFunProfile(day, periodLength, cycleLength);
+  activeSuggestions = profile.suggestions;
+  suggestionIndex = day % activeSuggestions.length;
+
+  playDayLabel.textContent = day === currentCycleDay ? "Spunto di oggi" : `Anteprima giorno ${day}`;
+  funLevel.textContent = profile.level;
+  funNote.textContent = profile.note;
+  suggestionText.textContent = activeSuggestions[suggestionIndex];
+}
+
+function getFunProfile(day, periodLength, cycleLength) {
+  const ovulationDay = Math.max(1, cycleLength - 14);
+  const fertileStart = Math.max(periodLength + 1, ovulationDay - 5);
+
+  if (day <= periodLength) {
+    return {
+      level: "Dolce e senza pressione",
+      note: "Comfort, vicinanza e ascolto possono essere piu invitanti di un programma intenso.",
+      suggestions: [
+        "Proponi una doccia calda insieme, poi lasciate decidere al momento se fermarvi alle coccole.",
+        "Massaggio lento a turno: chi lo riceve decide ritmo, zona e quando fermarsi.",
+        "Prepara una serata comoda e chiedile quale tipo di contatto le farebbe piacere oggi."
+      ]
+    };
+  }
+
+  if (day < fertileStart) {
+    return {
+      level: "Pepe in aumento",
+      note: "Dopo le mestruazioni energia e desiderio possono salire: buon momento per lanciare un invito malizioso.",
+      suggestions: [
+        "Mandale un messaggio malizioso durante il giorno e falle scegliere come continuare la sera.",
+        "Ognuno scrive un desiderio segreto: pescatene uno e decidete insieme se provarlo.",
+        "Proponi una serata senza telefoni, musica scelta da lei e baci senza fretta.",
+        "Invitala a scegliere un outfit, un luogo o una piccola fantasia da esplorare insieme."
+      ]
+    };
+  }
+
+  if (day < ovulationDay) {
+    return {
+      level: "Terreno piccante",
+      note: "La finestra fertile puo coincidere con piu desiderio e iniziativa, ma la risposta vera la da sempre lei.",
+      suggestions: [
+        "Gioco dei tre desideri: uno romantico, uno sensuale e uno decisamente audace.",
+        "Falle scegliere musica e ritmo; tu prepari una sorpresa e lei mantiene il diritto di cambiare idea.",
+        "Organizza un appuntamento in casa con una regola: ogni portata sblocca una domanda piu maliziosa.",
+        "Proponi una sfida lenta: niente fretta, chi cede per primo sceglie la prossima mossa."
+      ]
+    };
+  }
+
+  if (day === ovulationDay) {
+    return {
+      level: "Massimo tasso di pepe",
+      note: "Picco solo stimato: se l'intesa c'e, e una buona serata per una proposta piu coraggiosa.",
+      suggestions: [
+        "Carta bianca condivisa: raccontate una fantasia ciascuno e sceglietene una che entusiasmi entrambi.",
+        "Benda, musica e turno di comando, concordando prima una parola per fermarsi.",
+        "Preparate una sorpresa reciproca e rivelatela solo quando entrambi dite si al gioco.",
+        "Fatele trovare un invito: luogo, ora e due opzioni piccanti tra cui scegliere."
+      ]
+    };
+  }
+
+  const isLateLuteal = day > cycleLength - 5;
+  return {
+    level: isLateLuteal ? "Ritmo morbido" : "Pepe variabile",
+    note: isLateLuteal
+      ? "Nei giorni finali sensibilita e desiderio possono cambiare: meglio invitare senza aspettative."
+      : "Il desiderio puo restare vivace oppure rallentare. Una proposta flessibile funziona meglio.",
+    suggestions: [
+      "Proponi un massaggio con possibilita di continuare, ma rendi bellissimo anche fermarsi li.",
+      "Chiedile: stasera preferisci coccole, gioco o sorpresa? Poi segui davvero la risposta.",
+      "Create una lista si, forse, non oggi e scegliete insieme solo dalla prima colonna.",
+      "Serata lenta: luci basse, qualcosa di buono e nessun obiettivo oltre allo stare bene."
+    ]
+  };
 }
 
 function renderHistory() {

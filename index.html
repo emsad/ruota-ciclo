@@ -3,10 +3,10 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Ruota del ciclo</title>
+    <title>Ruota del divertimento</title>
     <meta
       name="description"
-      content="Una semplice ruota del ciclo mestruale con dati salvati solo nel browser."
+      content="Una ruota di coppia per seguire il ciclo e trovare idee di intimità consensuale."
     >
     <link rel="stylesheet" href="styles.css">
   </head>
@@ -14,42 +14,59 @@
     <main class="app-shell">
       <section class="topbar" aria-labelledby="app-title">
         <div>
-          <p class="eyebrow">Tracker locale</p>
-          <h1 id="app-title">Ruota del ciclo</h1>
+          <p class="eyebrow">Intesa di coppia</p>
+          <h1 id="app-title">Ruota del divertimento</h1>
         </div>
-        <div class="privacy-note">Dati salvati solo su questo dispositivo</div>
+        <div class="privacy-note">Stime orientative. Desiderio e ciclo sono personali.</div>
       </section>
 
       <section class="layout">
         <div class="wheel-panel" aria-label="Ruota del ciclo mestruale">
-          <div class="phase-label phase-label-top">Fase follicolare</div>
-          <div class="phase-label phase-label-bottom">Fase luteale</div>
+          <div class="phase-label phase-label-top">Divertimento in salita</div>
+          <div class="phase-label phase-label-bottom">Ritmo piu morbido</div>
           <div class="wheel-wrap">
             <div class="cycle-wheel" id="cycleWheel"></div>
             <div class="wheel-center">
-              <span class="center-kicker">Oggi</span>
+              <span class="center-kicker">Oggi, giorno</span>
               <strong id="todayDay">-</strong>
               <span id="todayPhase">Imposta una data</span>
+              <span class="heat-badge" id="todayHeat">-</span>
             </div>
           </div>
         </div>
 
         <aside class="control-panel" aria-label="Controlli della ruota">
-          <form id="settingsForm" class="form-grid">
-            <label>
-              <span>Ultimo inizio mestruazione</span>
-              <input id="lastStart" type="date" required>
-            </label>
-            <label>
-              <span>Durata ciclo</span>
-              <input id="cycleLength" type="number" min="21" max="40" value="28">
-            </label>
-            <label>
-              <span>Giorni di mestruazione</span>
-              <input id="periodLength" type="number" min="1" max="10" value="5">
-            </label>
-            <button type="submit">Aggiorna ruota</button>
-          </form>
+          <section class="play-card" aria-labelledby="play-title">
+            <p class="eyebrow" id="playDayLabel">Spunto di oggi</p>
+            <h2 id="play-title">Possibilita di gioco</h2>
+            <strong class="fun-level" id="funLevel">-</strong>
+            <p class="fun-note" id="funNote">Imposta una data per iniziare.</p>
+            <div class="suggestion-box">
+              <span>Proposta maliziosa</span>
+              <p id="suggestionText">-</p>
+            </div>
+            <button id="newSuggestion" type="button">Cambia proposta</button>
+            <small>Prima chiedi, poi giocate: deve piacere a entrambi.</small>
+          </section>
+
+          <details class="settings-box">
+            <summary>Regola il ciclo</summary>
+            <form id="settingsForm" class="form-grid">
+              <label>
+                <span>Ultimo inizio mestruazione</span>
+                <input id="lastStart" type="date" required>
+              </label>
+              <label>
+                <span>Durata ciclo</span>
+                <input id="cycleLength" type="number" min="21" max="40" value="28">
+              </label>
+              <label>
+                <span>Giorni di mestruazione</span>
+                <input id="periodLength" type="number" min="1" max="10" value="5">
+              </label>
+              <button type="submit">Aggiorna ruota</button>
+            </form>
+          </details>
 
           <div class="summary-grid">
             <div>
@@ -72,11 +89,11 @@
           </div>
 
           <section class="legend" aria-label="Legenda fasi">
-            <div><span class="dot period"></span>Mestruazione</div>
-            <div><span class="dot follicular"></span>Fase follicolare</div>
-            <div><span class="dot fertile"></span>Finestra fertile</div>
-            <div><span class="dot ovulation"></span>Ovulazione stimata</div>
-            <div><span class="dot luteal"></span>Fase luteale</div>
+            <div><span class="dot period"></span>Cura e comfort</div>
+            <div><span class="dot follicular"></span>Desiderio in salita</div>
+            <div><span class="dot fertile"></span>Terreno piccante</div>
+            <div><span class="dot ovulation"></span>Picco stimato</div>
+            <div><span class="dot luteal"></span>Ritmo variabile</div>
           </section>
         </aside>
       </section>

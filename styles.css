@@ -154,6 +154,11 @@ h2 {
   outline: 5px solid rgba(39, 39, 42, 0.14);
 }
 
+.day-node.is-selected {
+  outline: 5px solid #2f2f36;
+  z-index: 2;
+}
+
 .day-node.is-start {
   border-radius: 50% 50% 50% 8px;
   transform: translate(-50%, -50%) rotate(-45deg);
@@ -196,7 +201,7 @@ h2 {
 }
 
 .center-kicker,
-.wheel-center span:last-child {
+.wheel-center > span {
   color: var(--muted);
   font-weight: 800;
 }
@@ -210,6 +215,17 @@ h2 {
 .wheel-center strong {
   font-size: clamp(4rem, 13vw, 8rem);
   line-height: 0.96;
+}
+
+.wheel-center .heat-badge {
+  max-width: 90%;
+  margin-top: 8px;
+  border-radius: 999px;
+  background: #2f2f36;
+  color: #fff;
+  padding: 6px 10px;
+  font-size: 0.7rem;
+  line-height: 1.1;
 }
 
 .phase-label {
@@ -236,6 +252,72 @@ h2 {
   align-content: start;
   border-radius: 8px;
   padding: 20px;
+}
+
+.play-card {
+  display: grid;
+  gap: 10px;
+}
+
+.play-card h2 {
+  font-size: 1.1rem;
+}
+
+.fun-level {
+  color: #9e251f;
+  font-size: 1.8rem;
+  line-height: 1.05;
+}
+
+.fun-note,
+.suggestion-box p {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.fun-note {
+  color: #52525b;
+  font-size: 0.92rem;
+}
+
+.suggestion-box {
+  display: grid;
+  gap: 7px;
+  border-left: 5px solid var(--period);
+  background: #fff;
+  padding: 14px;
+}
+
+.suggestion-box span {
+  color: #9e251f;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.suggestion-box p {
+  font-size: 1.04rem;
+  font-weight: 800;
+}
+
+.play-card small {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.settings-box {
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  padding: 14px 0;
+}
+
+.settings-box summary {
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.settings-box[open] summary {
+  margin-bottom: 14px;
 }
 
 .form-grid {

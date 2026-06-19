@@ -1,12 +1,15 @@
 # Ruota del ciclo
 
-Una piccola app statica per segnare l'inizio delle mestruazioni e visualizzare una ruota del ciclo mestruale.
+Una piccola app di coppia per seguire il ciclo mestruale e trovare spunti di intimità consensuale adatti alle diverse fasi.
 
 ## Cosa fa
 
 - Mostra una ruota configurabile da 21 a 40 giorni.
 - Permette di segnare l'ultimo inizio delle mestruazioni.
 - Calcola il giorno corrente del ciclo, la prossima data stimata e la finestra fertile stimata.
+- Mostra un livello orientativo di "possibilita di gioco" per ogni fase.
+- Propone idee romantiche, sensuali o piccanti che cambiano con un pulsante.
+- Permette di cliccare ogni giorno della ruota per esplorare in anticipo le proposte.
 - Salva i dati solo nel browser con `localStorage`.
 
 ## Pubblicazione su GitHub Pages

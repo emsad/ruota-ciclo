@@ -12,13 +12,39 @@
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
-    <main class="app-shell">
+    <section class="auth-gate" id="authGate" aria-labelledby="auth-title">
+      <div class="auth-panel">
+        <p class="eyebrow">A Due / Archivio privato</p>
+        <h1 id="auth-title">Accesso riservato</h1>
+        <p>I dati del profilo sono disponibili soltanto dopo l'accesso.</p>
+        <form id="authForm" class="auth-form">
+          <label>
+            <span>Email</span>
+            <input id="authEmail" type="email" autocomplete="email" required>
+          </label>
+          <label>
+            <span>Password</span>
+            <input id="authPassword" type="password" autocomplete="current-password" minlength="8" required>
+          </label>
+          <button type="submit">Accedi</button>
+          <button id="signUp" type="button" class="secondary">Crea account</button>
+        </form>
+        <p class="auth-status" id="authStatus" role="status"></p>
+      </div>
+    </section>
+
+    <main class="app-shell" id="appShell" hidden>
       <section class="topbar" aria-labelledby="app-title">
         <div>
           <p class="eyebrow">Ruota del divertimento / Private edition</p>
           <h1 id="app-title">A Due</h1>
         </div>
-        <div class="privacy-note">Stime orientative. Desiderio e ciclo sono personali.</div>
+        <div class="account-panel">
+          <div class="privacy-note">Stime orientative. Desiderio e ciclo sono personali.</div>
+          <span id="accountEmail"></span>
+          <span id="syncStatus" role="status"></span>
+          <button id="signOut" type="button" class="account-signout">Esci</button>
+        </div>
       </section>
 
       <section class="layout">
@@ -69,6 +95,15 @@
             </form>
           </details>
 
+          <details class="settings-box import-box">
+            <summary>Importa dati storici</summary>
+            <p>Usa il modello CSV con una riga per ogni giorno osservato.</p>
+            <a class="template-link" href="supabase/history-template.csv" download>Scarica modello CSV</a>
+            <input id="historyFile" type="file" accept=".csv,text/csv">
+            <button id="importHistory" type="button">Importa nel database</button>
+            <span class="import-status" id="importStatus" role="status"></span>
+          </details>
+
           <div class="summary-grid">
             <div>
               <span>Prossimo ciclo</span>
@@ -108,6 +143,10 @@
       </section>
     </main>
 
+    <script src="vendor/supabase.js"></script>
+    <script src="vendor/papaparse.min.js"></script>
+    <script src="supabase-config.js"></script>
+    <script src="database.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

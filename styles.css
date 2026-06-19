@@ -22,6 +22,10 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
@@ -39,6 +43,49 @@ body::before {
   inset: 0;
   z-index: -1;
   background: rgba(10, 9, 8, 0.58);
+}
+
+.auth-gate {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 24px;
+}
+
+.auth-panel {
+  width: min(100%, 430px);
+  border: 1px solid rgba(209, 189, 147, 0.44);
+  border-radius: 5px;
+  background: rgba(17, 16, 15, 0.94);
+  box-shadow: var(--shadow);
+  padding: 34px;
+}
+
+.auth-panel h1 {
+  font-size: clamp(2.8rem, 9vw, 4.4rem);
+}
+
+.auth-panel > p:not(.eyebrow):not(.auth-status) {
+  color: rgba(243, 239, 231, 0.7);
+  line-height: 1.5;
+}
+
+.auth-form {
+  display: grid;
+  gap: 14px;
+  margin-top: 24px;
+}
+
+.auth-form label {
+  color: rgba(243, 239, 231, 0.74);
+}
+
+.auth-status {
+  min-height: 1.3em;
+  margin: 18px 0 0;
+  color: var(--brass-light);
+  font-size: 0.82rem;
+  line-height: 1.4;
 }
 
 button,
@@ -106,6 +153,31 @@ h2 {
   font-size: 1rem;
   line-height: 1.35;
   text-align: left;
+}
+
+.account-panel {
+  display: grid;
+  gap: 7px;
+  justify-items: start;
+  max-width: 300px;
+}
+
+.account-panel > span {
+  color: rgba(243, 239, 231, 0.62);
+  font-size: 0.7rem;
+}
+
+.account-signout {
+  min-height: 30px;
+  border-color: rgba(209, 189, 147, 0.4);
+  background: transparent;
+  padding: 4px 13px;
+}
+
+.account-signout:hover {
+  border-color: var(--brass-light);
+  background: transparent;
+  color: var(--brass-light);
 }
 
 .layout {
@@ -363,6 +435,35 @@ h2 {
 
 .settings-box[open] summary {
   margin-bottom: 16px;
+}
+
+.import-box p {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.import-box input[type="file"] {
+  height: auto;
+  margin: 12px 0;
+  background: transparent;
+  padding: 10px;
+  font-size: 0.72rem;
+}
+
+.template-link {
+  color: var(--oxblood);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.import-status {
+  display: block;
+  min-height: 1.2em;
+  margin-top: 9px;
+  color: var(--muted);
+  font-size: 0.75rem;
 }
 
 .form-grid {

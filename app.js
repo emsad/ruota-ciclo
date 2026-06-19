@@ -1,4 +1,3 @@
-const STORAGE_KEY = "cycle-wheel-state-v1";
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 const defaults = {
@@ -8,7 +7,8 @@ const defaults = {
   history: []
 };
 
-const state = loadState();
+const state = { ...defaults, history: [] };
+const db = window.ADueDb;
 const wheel = document.querySelector("#cycleWheel");
 const form = document.querySelector("#settingsForm");
 const lastStartInput = document.querySelector("#lastStart");
@@ -28,40 +28,76 @@ const funLevel = document.querySelector("#funLevel");
 const funNote = document.querySelector("#funNote");
 const suggestionText = document.querySelector("#suggestionText");
 const newSuggestion = document.querySelector("#newSuggestion");
+const authGate = document.querySelector("#authGate");
+const authForm = document.querySelector("#authForm");
+const authEmail = document.querySelector("#authEmail");
+const authPassword = document.querySelector("#authPassword");
+const authStatus = document.querySelector("#authStatus");
+const signUpButton = document.querySelector("#signUp");
+const signOutButton = document.querySelector("#signOut");
+const appShell = document.querySelector("#appShell");
+const accountEmail = document.querySelector("#accountEmail");
+const syncStatus = document.querySelector("#syncStatus");
+const historyFile = document.querySelector("#historyFile");
+const importHistoryButton = document.querySelector("#importHistory");
+const importStatus = document.querySelector("#importStatus");
 
 let selectedDay = null;
 let activeSuggestions = [];
 let suggestionIndex = 0;
+let profileId = null;
+let activeUserId = null;
 
 lastStartInput.value = state.lastStart;
 cycleLengthInput.value = state.cycleLength;
 periodLengthInput.value = state.periodLength;
 
-form.addEventListener("submit", (event) => {
+form.addEventListener("submit", async (event) => {
   event.preventDefault();
   state.lastStart = lastStartInput.value;
   state.cycleLength = clamp(Number(cycleLengthInput.value), 21, 40);
   state.periodLength = clamp(Number(periodLengthInput.value), 1, 10);
   addHistoryDate(state.lastStart);
-  saveState();
-  render();
+  try {
+    setSyncStatus("Salvataggio...");
+    await saveState();
+    render();
+    setSyncStatus("Salvato");
+  } catch (error) {
+    setSyncStatus(`Errore: ${readableError(error)}`);
+  }
 });
 
-markToday.addEventListener("click", () => {
+markToday.addEventListener("click", async () => {
   state.lastStart = toInputDate(new Date());
   addHistoryDate(state.lastStart);
   lastStartInput.value = state.lastStart;
-  saveState();
-  render();
+  try {
+    setSyncStatus("Salvataggio...");
+    await saveState();
+    render();
+    setSyncStatus("Salvato");
+  } catch (error) {
+    setSyncStatus(`Errore: ${readableError(error)}`);
+  }
 });
 
-clearData.addEventListener("click", () => {
-  localStorage.removeItem(STORAGE_KEY);
+clearData.addEventListener("click", async () => {
+  const confirmed = window.confirm("Cancellare dal database tutte le date e le osservazioni del profilo?");
+  if (!confirmed) return;
+
+  try {
+    setSyncStatus("Cancellazione...");
+    await db.clearProfileData(profileId, defaults);
+  } catch (error) {
+    setSyncStatus(`Errore: ${readableError(error)}`);
+    return;
+  }
+
   Object.assign(state, { ...defaults, history: [] });
-  lastStartInput.value = state.lastStart;
-  cycleLengthInput.value = state.cycleLength;
-  periodLengthInput.value = state.periodLength;
+  syncInputs();
   render();
+  setSyncStatus("Dati cancellati");
 });
 
 newSuggestion.addEventListener("click", () => {
@@ -70,7 +106,199 @@ newSuggestion.addEventListener("click", () => {
   suggestionText.textContent = activeSuggestions[suggestionIndex];
 });
 
-render();
+authForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  authStatus.textContent = "Accesso...";
+
+  try {
+    const session = await db.signIn(authEmail.value.trim(), authPassword.value);
+    if (session) await activateSession(session);
+  } catch (error) {
+    authStatus.textContent = readableError(error);
+  }
+});
+
+signUpButton.addEventListener("click", async () => {
+  if (!authForm.reportValidity()) return;
+  authStatus.textContent = "Creazione account...";
+
+  try {
+    const result = await db.signUp(authEmail.value.trim(), authPassword.value);
+    if (result.session) {
+      await activateSession(result.session);
+    } else {
+      authStatus.textContent = "Controlla la tua email per confermare l'account, poi accedi.";
+    }
+  } catch (error) {
+    authStatus.textContent = readableError(error);
+  }
+});
+
+signOutButton.addEventListener("click", async () => {
+  try {
+    await db.signOut();
+    showAuth();
+  } catch (error) {
+    setSyncStatus(`Errore: ${readableError(error)}`);
+  }
+});
+
+importHistoryButton.addEventListener("click", async () => {
+  const file = historyFile.files[0];
+  if (!file) {
+    importStatus.textContent = "Seleziona prima un file CSV.";
+    return;
+  }
+
+  importStatus.textContent = "Lettura e controllo...";
+
+  try {
+    const parsed = window.Papa.parse(await file.text(), {
+      header: true,
+      skipEmptyLines: "greedy",
+      transformHeader: (header) => header.trim().toLowerCase()
+    });
+
+    if (parsed.errors.length > 0) {
+      throw new Error(parsed.errors[0].message);
+    }
+
+    const normalized = normalizeHistoricalRows(parsed.data);
+    await db.importHistory(profileId, normalized.cycleStarts, normalized.observations);
+
+    const events = await db.loadCycleEvents(profileId);
+    state.history = events.map((event) => event.start_date);
+    if (state.history[0]) state.lastStart = state.history[0];
+    syncInputs();
+    render();
+    historyFile.value = "";
+    importStatus.textContent = `${normalized.total} righe importate.`;
+  } catch (error) {
+    importStatus.textContent = `Errore: ${readableError(error)}`;
+  }
+});
+
+initialize();
+
+async function initialize() {
+  if (!db) {
+    authStatus.textContent = "Configurazione database non disponibile.";
+    return;
+  }
+
+  try {
+    const session = await db.getSession();
+    if (session) await activateSession(session);
+    else showAuth();
+  } catch (error) {
+    authStatus.textContent = readableError(error);
+  }
+
+  db.onAuthChange((session) => {
+    window.setTimeout(() => {
+      if (session) activateSession(session);
+      else showAuth();
+    }, 0);
+  });
+}
+
+async function activateSession(session) {
+  if (activeUserId === session.user.id && profileId) return;
+
+  authStatus.textContent = "Caricamento profilo...";
+  const profile = await db.loadProfile(defaults);
+  const events = await db.loadCycleEvents(profile.id);
+
+  profileId = profile.id;
+  activeUserId = session.user.id;
+  state.cycleLength = profile.cycle_length;
+  state.periodLength = profile.period_length;
+  state.history = events.map((event) => event.start_date);
+  state.lastStart = state.history[0] ?? defaults.lastStart;
+
+  syncInputs();
+  accountEmail.textContent = session.user.email;
+  authGate.hidden = true;
+  appShell.hidden = false;
+  authPassword.value = "";
+  setSyncStatus("Sincronizzato");
+  render();
+}
+
+function showAuth() {
+  activeUserId = null;
+  profileId = null;
+  appShell.hidden = true;
+  authGate.hidden = false;
+  authStatus.textContent = "";
+  accountEmail.textContent = "";
+}
+
+function syncInputs() {
+  lastStartInput.value = state.lastStart;
+  cycleLengthInput.value = state.cycleLength;
+  periodLengthInput.value = state.periodLength;
+}
+
+function setSyncStatus(message) {
+  syncStatus.textContent = message;
+}
+
+function normalizeHistoricalRows(rows) {
+  const cycleStarts = [];
+  const observations = [];
+
+  rows.forEach((row, index) => {
+    const line = index + 2;
+    const date = String(row.date ?? "").trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      throw new Error(`Data non valida alla riga ${line}. Usa AAAA-MM-GG.`);
+    }
+
+    if (isCsvTrue(row.period_start)) cycleStarts.push(date);
+
+    const observation = {
+      date,
+      mood: csvScore(row.mood, line, "mood"),
+      libido: csvScore(row.libido, line, "libido"),
+      energy: csvScore(row.energy, line, "energy"),
+      irritability: csvScore(row.irritability, line, "irritability"),
+      pain: csvScore(row.pain, line, "pain"),
+      notes: String(row.notes ?? "").trim() || null
+    };
+
+    const hasObservation = [
+      observation.mood,
+      observation.libido,
+      observation.energy,
+      observation.irritability,
+      observation.pain,
+      observation.notes
+    ].some((value) => value !== null);
+
+    if (hasObservation) observations.push(observation);
+  });
+
+  return {
+    cycleStarts: [...new Set(cycleStarts)],
+    observations,
+    total: rows.length
+  };
+}
+
+function isCsvTrue(value) {
+  return ["true", "1", "yes", "si", "sì"].includes(String(value ?? "").trim().toLowerCase());
+}
+
+function csvScore(value, line, field) {
+  const text = String(value ?? "").trim();
+  if (text === "") return null;
+  const number = Number(text);
+  if (!Number.isInteger(number) || number < 0 || number > 5) {
+    throw new Error(`${field} deve essere da 0 a 5 alla riga ${line}.`);
+  }
+  return number;
+}
 
 function render() {
   wheel.innerHTML = "";
@@ -268,17 +496,14 @@ function addHistoryDate(date) {
   state.history = [...new Set([date, ...state.history])].slice(0, 24);
 }
 
-function loadState() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    return { ...defaults, ...saved, history: saved?.history ?? [] };
-  } catch {
-    return { ...defaults, history: [] };
-  }
+async function saveState() {
+  if (!db || !profileId) throw new Error("Profilo non disponibile");
+  await db.saveSettings(profileId, state.cycleLength, state.periodLength);
+  await db.saveCycleStart(profileId, state.lastStart);
 }
 
-function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+function readableError(error) {
+  return error?.message || "Operazione non riuscita";
 }
 
 function parseLocalDate(value) {

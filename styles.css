@@ -179,6 +179,7 @@ button:hover { transform: translateY(-1px); }
 .timeline-day { position: relative; z-index: 1; display: grid; flex: 1; min-width: 42px; min-height: 55px; align-content: end; justify-items: center; border: 0; background: transparent; color: var(--muted); padding: 0; font-family: var(--serif); font-size: 0.95rem; font-weight: 400; }
 .timeline-day::after { content: ""; width: 7px; height: 7px; margin-top: 11px; border: 1px solid rgba(255,255,255,.78); border-radius: 50%; background: var(--accent-soft); }
 .timeline-day:hover, .timeline-day.is-selected { color: var(--ink); transform: none; }
+.timeline-day:disabled { cursor: default; opacity: 0.62; }
 .timeline-day.is-selected::after { width: 11px; height: 11px; margin-top: 9px; border: 3px solid rgba(255,255,255,.84); background: var(--accent); }
 .timeline-day.is-current { font-size: 0; pointer-events: none; }
 .timeline-day.is-current::after { opacity: 0; }

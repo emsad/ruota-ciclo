@@ -366,6 +366,7 @@ function renderTimeline(cycleLength, periodLength, currentDay) {
     button.className = "timeline-day";
     button.textContent = day;
     button.setAttribute("aria-label", `Giorno ${day}, ${phase.label}`);
+    button.disabled = !currentDay;
     if (day === currentDay) button.classList.add("is-current");
     if (day === selectedDay) button.classList.add("is-selected");
     button.addEventListener("click", () => {
@@ -445,9 +446,9 @@ function populateObservation() {
     elements[`${field}Input`].value = observation?.[field] ?? 0;
   });
   elements.notesInput.value = observation?.notes ?? "";
-  elements.energyOutput.textContent = observation ? scoreLabels.energy[observation.energy] : "Non registrata";
-  elements.moodOutput.textContent = observation ? scoreLabels.mood[observation.mood] : "Non registrato";
-  elements.libidoOutput.textContent = observation ? scoreLabels.libido[observation.libido] : "Non registrata";
+  elements.energyOutput.textContent = Number.isInteger(observation?.energy) ? scoreLabels.energy[observation.energy] : "Non registrata";
+  elements.moodOutput.textContent = Number.isInteger(observation?.mood) ? scoreLabels.mood[observation.mood] : "Non registrato";
+  elements.libidoOutput.textContent = Number.isInteger(observation?.libido) ? scoreLabels.libido[observation.libido] : "Non registrata";
   elements.irritabilityOutput.textContent = observation?.irritability ?? "0";
   elements.painOutput.textContent = observation?.pain ?? "0";
   elements.observationStatus.textContent = observation ? "Osservazione gia salvata" : "Ancora da compilare";

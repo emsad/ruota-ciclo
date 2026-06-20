@@ -64,7 +64,7 @@
     async loadCycleEvents(profileId) {
       const { data, error } = await client
         .from("cycle_events")
-        .select("start_date")
+        .select("start_date,end_date,notes")
         .eq("profile_id", profileId)
         .order("start_date", { ascending: false });
 
@@ -82,6 +82,30 @@
 
       if (error) throw error;
       return data;
+    },
+
+    async loadAllObservations(profileId) {
+      const { data, error } = await client
+        .from("daily_observations")
+        .select("observation_date,mood,libido,energy,irritability,pain,notes")
+        .eq("profile_id", profileId)
+        .order("observation_date", { ascending: false })
+        .limit(1000);
+
+      if (error) throw error;
+      return data ?? [];
+    },
+
+    async loadTimelineEvents(profileId) {
+      const { data, error } = await client
+        .from("timeline_events")
+        .select("event_date,category,intensity,details")
+        .eq("profile_id", profileId)
+        .order("event_date", { ascending: false })
+        .limit(1000);
+
+      if (error) throw error;
+      return data ?? [];
     },
 
     async saveObservation(profileId, observation) {
@@ -128,6 +152,47 @@
       if (error) throw error;
     },
 
+    async deleteCycleStart(profileId, startDate) {
+      const { error } = await client
+        .from("cycle_events")
+        .delete()
+        .eq("profile_id", profileId)
+        .eq("start_date", startDate);
+
+      if (error) throw error;
+    },
+
+    async saveTimelineEvent(profileId, event) {
+      const { data, error } = await client
+        .from("timeline_events")
+        .upsert(
+          {
+            profile_id: profileId,
+            event_date: event.date,
+            category: event.category,
+            intensity: event.intensity,
+            details: event.details
+          },
+          { onConflict: "profile_id,event_date,category" }
+        )
+        .select("event_date,category,intensity,details")
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+
+    async deleteTimelineEvent(profileId, eventDate, category) {
+      const { error } = await client
+        .from("timeline_events")
+        .delete()
+        .eq("profile_id", profileId)
+        .eq("event_date", eventDate)
+        .eq("category", category);
+
+      if (error) throw error;
+    },
+
     async importHistory(profileId, cycleStarts, observations) {
       if (cycleStarts.length > 0) {
         const { error } = await client
@@ -161,6 +226,12 @@
     },
 
     async clearProfileData(profileId, defaults) {
+      const timeline = await client
+        .from("timeline_events")
+        .delete()
+        .eq("profile_id", profileId);
+      if (timeline.error) throw timeline.error;
+
       const observations = await client
         .from("daily_observations")
         .delete()

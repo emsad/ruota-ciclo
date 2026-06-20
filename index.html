@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>A Due - Diario del ciclo</title>
     <meta name="theme-color" content="#f1efe7">
-    <meta name="description" content="Un diario privato per osservare il ciclo con rispetto e consapevolezza.">
-    <link rel="stylesheet" href="styles.css?v=2">
+    <meta name="description" content="Un diario privato per osservare il ciclo e riconoscere pattern personali.">
+    <link rel="stylesheet" href="styles.css?v=3">
   </head>
   <body class="phase-follicular">
     <section class="auth-gate" id="authGate" aria-labelledby="auth-title">
@@ -14,7 +14,7 @@
         <div class="brand-mark" aria-hidden="true">A</div>
         <p class="eyebrow">A Due / Archivio privato</p>
         <h1 id="auth-title">Bentornato</h1>
-        <p>Accedi al tuo diario personale. I dati sono visibili soltanto dal tuo account.</p>
+        <p>Accedi al tuo diario personale. I dati sono disponibili soltanto dal tuo account.</p>
         <form id="authForm" class="auth-form">
           <label><span>Email</span><input id="authEmail" type="email" autocomplete="email" required></label>
           <label><span>Password</span><input id="authPassword" type="password" autocomplete="current-password" minlength="8" required></label>
@@ -29,11 +29,17 @@
 
     <main class="app-shell" id="appShell" hidden>
       <header class="topbar">
-        <a class="brand" href="#today" aria-label="A Due, oggi">
+        <button class="brand" type="button" data-view-target="today" aria-label="A Due, vai a Oggi">
           <span class="brand-mark" aria-hidden="true">A</span>
           <span>A Due</span>
-        </a>
-        <time class="current-month" id="currentMonth"></time>
+        </button>
+
+        <nav class="main-nav" aria-label="Viste principali">
+          <button type="button" data-view-target="today" class="is-active" aria-current="page">Oggi</button>
+          <button type="button" data-view-target="calendar">Calendario</button>
+          <button type="button" data-view-target="patterns">Pattern</button>
+        </nav>
+
         <div class="account-panel">
           <span class="sync-dot" aria-hidden="true"></span>
           <span id="syncStatus" role="status"></span>
@@ -47,127 +53,192 @@
         </div>
       </header>
 
-      <section class="dashboard" id="today" aria-labelledby="phaseTitle">
-        <div class="ambient-shade" aria-hidden="true"></div>
+      <section class="view-panel today-view is-active" id="todayView" data-view="today" aria-labelledby="phaseTitle">
+        <div class="today-ambient" aria-hidden="true"></div>
 
-        <aside class="trend-card" aria-label="Indicazione della fase">
-          <span class="trend-day" id="trendDay">Giorno -</span>
-          <strong id="trendPhase">Imposta il ciclo</strong>
-          <div class="trend-divider"></div>
-          <span class="trend-label" id="trendLabel">Andamento orientativo</span>
-          <p id="trendText">Registra la data di inizio per visualizzare la fase stimata.</p>
+        <aside class="forecast-card" aria-label="Previsione personale">
+          <span id="forecastDay">Ciclo non impostato</span>
+          <strong id="forecastPhase">In attesa dei dati</strong>
+          <div class="forecast-rule"></div>
+          <span class="forecast-label" id="forecastLabel">Previsione orientativa</span>
+          <p id="forecastText">Registra il primo inizio delle mestruazioni per cominciare.</p>
         </aside>
 
-        <div class="hero">
-          <span class="hero-kicker" id="dayContext">Oggi</span>
-          <div class="day-orb" aria-live="polite">
-            <strong id="todayDay">-</strong>
-            <span aria-hidden="true"></span>
-          </div>
-
-          <div class="timeline-wrap" aria-label="Giorni del ciclo">
-            <div class="timeline" id="cycleTimeline"></div>
-          </div>
-
+        <div class="today-hero">
+          <span class="hero-kicker">Oggi</span>
+          <div class="day-orb"><strong id="todayDay">-</strong><span aria-hidden="true"></span></div>
+          <div class="timeline-wrap" aria-label="Giorni del ciclo"><div class="timeline" id="cycleTimeline"></div></div>
           <div class="phase-copy">
-            <h1 id="phaseTitle">Imposta una data</h1>
+            <h1 id="phaseTitle">Imposta il ciclo</h1>
             <span class="phase-symbol" aria-hidden="true">&#10047;</span>
-            <p id="phaseDescription">Il ciclo e l'esperienza personale non coincidono sempre: osservare vale piu che presumere.</p>
+            <p id="phaseDescription">Una data reale trasforma il calendario in una previsione personale.</p>
           </div>
         </div>
 
-        <form class="daily-checkin" id="dailyForm">
+        <div class="today-actions">
+          <button id="logToday" type="button" class="primary-action">Registra oggi</button>
+          <span id="todayRecordStatus">Nessuna osservazione registrata</span>
+        </div>
+
+        <section class="today-insights" aria-labelledby="today-insights-title">
           <div class="section-heading">
-            <div>
-              <p class="eyebrow">Osservazione di oggi</p>
-              <h2>Segnali registrati</h2>
-            </div>
-            <span id="observationStatus" role="status"></span>
+            <div><p class="eyebrow">Segnali recenti</p><h2 id="today-insights-title">Il quadro di oggi</h2></div>
+            <button type="button" class="quiet-button" data-view-target="patterns">Vedi tutti i pattern</button>
           </div>
-
-          <div class="metrics-grid">
-            <label class="metric-card">
-              <span class="metric-title">Energia</span>
-              <output id="energyOutput">Non registrata</output>
-              <input id="energyInput" name="energy" type="range" min="0" max="5" step="1" value="0">
-              <small>Da molto bassa a molto alta</small>
-            </label>
-
-            <label class="metric-card">
-              <span class="metric-title">Umore</span>
-              <output id="moodOutput">Non registrato</output>
-              <input id="moodInput" name="mood" type="range" min="0" max="5" step="1" value="0">
-              <small>Da difficile a molto positivo</small>
-            </label>
-
-            <label class="metric-card">
-              <span class="metric-title">Libido</span>
-              <output id="libidoOutput">Non registrata</output>
-              <input id="libidoInput" name="libido" type="range" min="0" max="5" step="1" value="0">
-              <small>Una nota, non una previsione</small>
-            </label>
-
-            <label class="note-card">
-              <span class="metric-title">Note del giorno</span>
-              <textarea id="notesInput" rows="4" placeholder="Scrivi soltanto cio che avete scelto di osservare insieme..."></textarea>
-              <small>Informazioni private, salvate nel tuo archivio.</small>
-            </label>
+          <div class="insight-grid">
+            <article class="insight-card"><span>Libido</span><strong id="todayLibido">-</strong><div class="sparkline" id="todayLibidoSpark"></div><small id="todayLibidoNote">Non ancora registrata</small></article>
+            <article class="insight-card"><span>Umore</span><strong id="todayMood">-</strong><div class="sparkline" id="todayMoodSpark"></div><small id="todayMoodNote">Non ancora registrato</small></article>
+            <article class="insight-card"><span>Irritabilita</span><strong id="todayIrritability">-</strong><div class="sparkline" id="todayIrritabilitySpark"></div><small id="todayIrritabilityNote">Non ancora registrata</small></article>
           </div>
+        </section>
 
-          <details class="more-signals">
-            <summary>Altri segnali</summary>
-            <div class="secondary-signals">
-              <label><span>Irritabilita</span><input id="irritabilityInput" type="range" min="0" max="5" value="0"><output id="irritabilityOutput">0</output></label>
-              <label><span>Dolore</span><input id="painInput" type="range" min="0" max="5" value="0"><output id="painOutput">0</output></label>
-            </div>
-          </details>
-
-          <button class="save-observation" type="submit">Salva osservazione</button>
-        </form>
-
-        <details class="cycle-details">
-          <summary>Dettagli ciclo</summary>
-          <div class="details-content">
+        <details class="cycle-settings">
+          <summary>Impostazioni ciclo e archivio</summary>
+          <div class="settings-content">
             <form id="settingsForm" class="settings-form">
               <label><span>Ultimo inizio mestruazione</span><input id="lastStart" type="date" required></label>
-              <label><span>Durata ciclo</span><input id="cycleLength" type="number" min="21" max="40" value="28"></label>
-              <label><span>Giorni di mestruazione</span><input id="periodLength" type="number" min="1" max="10" value="5"></label>
+              <label><span>Durata abituale</span><input id="cycleLength" type="number" min="21" max="40" value="28"></label>
+              <label><span>Giorni di flusso</span><input id="periodLength" type="number" min="1" max="10" value="5"></label>
               <button type="submit">Aggiorna</button>
-              <button id="markToday" type="button" class="secondary">Inizio oggi</button>
+              <button id="markToday" type="button" class="secondary">Inizia oggi</button>
             </form>
-
             <div class="cycle-summary">
               <div><span>Prossimo ciclo stimato</span><strong id="nextPeriod">-</strong></div>
-              <div><span>Giorni mancanti</span><strong id="daysUntil">-</strong></div>
-              <div><span>Finestra fertile stimata</span><strong id="fertileWindow">-</strong></div>
+              <div><span>Intervallo previsto</span><strong id="predictionRange">-</strong></div>
+              <div><span>Affidabilita</span><strong id="predictionConfidence">In attesa</strong></div>
             </div>
-
-            <div class="history-block">
-              <h3>Date registrate</h3>
-              <ul id="historyList" class="history-list"></ul>
+            <div class="archive-row">
+              <div><h3>Date registrate</h3><ul id="historyList" class="history-list"></ul></div>
+              <div class="import-block">
+                <h3>Importa storico CSV</h3>
+                <a href="supabase/history-template.csv" download>Scarica modello</a>
+                <input id="historyFile" type="file" accept=".csv,text/csv">
+                <button id="importHistory" type="button" class="secondary">Importa</button>
+                <span id="importStatus" role="status"></span>
+              </div>
             </div>
-
-            <div class="import-block">
-              <h3>Importa dati storici</h3>
-              <p>Usa il modello CSV con una riga per ogni giorno osservato.</p>
-              <a href="supabase/history-template.csv" download>Scarica modello CSV</a>
-              <input id="historyFile" type="file" accept=".csv,text/csv">
-              <button id="importHistory" type="button" class="secondary">Importa</button>
-              <span id="importStatus" role="status"></span>
-            </div>
-
             <button id="clearData" type="button" class="danger-button">Cancella tutti i dati</button>
           </div>
         </details>
-
-        <p class="disclaimer">Le fasi sono stime orientative, non indicazioni mediche. Il vissuto reale e il consenso vengono sempre prima.</p>
       </section>
+
+      <section class="view-panel calendar-view" id="calendarView" data-view="calendar" hidden aria-labelledby="calendarTitle">
+        <div class="page-heading">
+          <div><p class="eyebrow">Archivio quotidiano</p><h1 id="calendarTitle">Calendario</h1><p>Seleziona un giorno per registrare o modificare cio che e accaduto.</p></div>
+          <button id="logSelected" type="button" class="primary-action">Registra oggi</button>
+        </div>
+
+        <div class="filter-bar" id="calendarFilters" aria-label="Filtri calendario">
+          <button type="button" data-filter="all" class="is-active">Tutto</button>
+          <button type="button" data-filter="period"><span class="filter-dot period"></span>Mestruazioni</button>
+          <button type="button" data-filter="sex"><span class="filter-dot sex"></span>Sesso</button>
+          <button type="button" data-filter="conflict"><span class="filter-dot conflict"></span>Litigi</button>
+          <button type="button" data-filter="high-libido">Libido alta</button>
+          <button type="button" data-filter="low-mood">Umore difficile</button>
+          <button type="button" data-filter="notes">Note</button>
+          <button type="button" data-filter="other">Altro</button>
+        </div>
+
+        <div class="calendar-layout">
+          <section class="calendar-shell" aria-label="Calendario mensile">
+            <header class="calendar-toolbar">
+              <button id="previousMonth" type="button" class="icon-button" aria-label="Mese precedente">&#8249;</button>
+              <h2 id="calendarMonth"></h2>
+              <button id="nextMonth" type="button" class="icon-button" aria-label="Mese successivo">&#8250;</button>
+            </header>
+            <div class="weekday-row" aria-hidden="true"><span>Lun</span><span>Mar</span><span>Mer</span><span>Gio</span><span>Ven</span><span>Sab</span><span>Dom</span></div>
+            <div class="month-grid" id="monthGrid"></div>
+            <div class="calendar-legend"><span><i class="filter-dot period"></i>Mestruazioni</span><span><i class="filter-dot sex"></i>Sesso</span><span><i class="filter-dot conflict"></i>Litigio</span><span><i class="filter-dot note"></i>Nota</span><span><i class="prediction-mark"></i>Previsione</span></div>
+          </section>
+
+          <aside class="event-feed" aria-labelledby="eventFeedTitle">
+            <div><p class="eyebrow">Risultati filtrati</p><h2 id="eventFeedTitle">Eventi</h2></div>
+            <div class="feed-summary" id="feedSummary"></div>
+            <ol id="eventList" class="event-list"></ol>
+          </aside>
+        </div>
+      </section>
+
+      <section class="view-panel patterns-view" id="patternsView" data-view="patterns" hidden aria-labelledby="patternsTitle">
+        <div class="page-heading">
+          <div><p class="eyebrow">Analisi personale</p><h1 id="patternsTitle">Pattern</h1><p>Correlazioni osservate nei tuoi dati, non spiegazioni mediche.</p></div>
+          <div class="confidence-badge"><span>Affidabilita</span><strong id="patternConfidence">In attesa</strong></div>
+        </div>
+
+        <div class="pattern-summary" id="patternSummary"></div>
+
+        <div class="pattern-grid">
+          <article class="chart-panel chart-wide">
+            <div><span>In relazione al ciclo</span><h2>Libido media per giorno</h2></div>
+            <div class="chart" id="libidoChart"></div>
+          </article>
+          <article class="chart-panel chart-wide">
+            <div><span>In relazione al ciclo</span><h2>Umore e irritabilita</h2></div>
+            <div class="chart" id="moodChart"></div>
+          </article>
+          <article class="chart-panel">
+            <div><span>Eventi</span><h2>Intimita per fase</h2></div>
+            <div class="chart" id="sexPhaseChart"></div>
+          </article>
+          <article class="chart-panel">
+            <div><span>Periodo dell'anno</span><h2>Confronto stagionale</h2></div>
+            <div class="chart" id="seasonChart"></div>
+          </article>
+        </div>
+
+        <section class="pattern-list-panel">
+          <div><p class="eyebrow">Lettura automatica</p><h2>Segnali da osservare</h2></div>
+          <ul id="patternFindings"></ul>
+        </section>
+      </section>
+
+      <nav class="mobile-nav" aria-label="Viste principali mobile">
+        <button type="button" data-view-target="today" class="is-active">Oggi</button>
+        <button type="button" data-view-target="calendar">Calendario</button>
+        <button type="button" data-view-target="patterns">Pattern</button>
+      </nav>
     </main>
+
+    <div class="drawer-backdrop" id="drawerBackdrop" hidden></div>
+    <aside class="day-drawer" id="dayDrawer" hidden aria-labelledby="drawerTitle" aria-modal="true" role="dialog">
+      <header class="drawer-header">
+        <div><p class="eyebrow">Diario quotidiano</p><h2 id="drawerTitle">Registra giornata</h2><time id="drawerDate"></time></div>
+        <button id="closeDrawer" type="button" class="icon-button" aria-label="Chiudi">&#10005;</button>
+      </header>
+
+      <form id="dayForm" class="day-form">
+        <label class="toggle-row">
+          <span><strong>Inizio mestruazioni</strong><small>Segna il primo giorno del flusso</small></span>
+          <input id="periodStartInput" type="checkbox"><i aria-hidden="true"></i>
+        </label>
+
+        <fieldset class="score-field"><legend>Libido percepita <output id="libidoValue">Non registrata</output></legend><div class="score-options" id="libidoOptions" data-score="libido"></div></fieldset>
+        <fieldset class="score-field"><legend>Umore <output id="moodValue">Non registrato</output></legend><div class="score-options" id="moodOptions" data-score="mood"></div></fieldset>
+        <fieldset class="score-field"><legend>Irritabilita <output id="irritabilityValue">Non registrata</output></legend><div class="score-options" id="irritabilityOptions" data-score="irritability"></div></fieldset>
+
+        <section class="event-entry">
+          <label class="toggle-row compact"><span><strong>Sesso</strong><small>Esperienza intima consensuale</small></span><input id="sexInput" type="checkbox"><i aria-hidden="true"></i></label>
+          <fieldset id="sexIntensityField" class="score-field nested" disabled><legend>Intensita <output id="sexValue">-</output></legend><div class="score-options" id="sexOptions" data-score="sex"></div></fieldset>
+        </section>
+
+        <section class="event-entry">
+          <label class="toggle-row compact"><span><strong>Litigio</strong><small>Tensione o conflitto significativo</small></span><input id="conflictInput" type="checkbox"><i aria-hidden="true"></i></label>
+          <fieldset id="conflictIntensityField" class="score-field nested" disabled><legend>Intensita <output id="conflictValue">-</output></legend><div class="score-options" id="conflictOptions" data-score="conflict"></div></fieldset>
+        </section>
+
+        <label class="toggle-row compact"><span><strong>Altro evento</strong><small>Qualcosa che potrebbe influire sul pattern</small></span><input id="otherInput" type="checkbox"><i aria-hidden="true"></i></label>
+        <label id="otherDetailsLabel" hidden><span>Descrizione altro evento</span><input id="otherDetailsInput" type="text" maxlength="180" placeholder="Viaggio, stress, malessere, alcol..."></label>
+        <label><span>Note del giorno</span><textarea id="dayNotesInput" rows="4" maxlength="1200" placeholder="Aggiungi contesto utile, senza supposizioni..."></textarea></label>
+
+        <p class="drawer-status" id="drawerStatus" role="status"></p>
+        <button type="submit" class="primary-action drawer-save">Salva giornata</button>
+      </form>
+    </aside>
 
     <script src="vendor/supabase.js"></script>
     <script src="vendor/papaparse.min.js"></script>
     <script src="supabase-config.js"></script>
-    <script src="database.js?v=2"></script>
-    <script src="app.js?v=2"></script>
+    <script src="database.js?v=3"></script>
+    <script src="app.js?v=3"></script>
   </body>
 </html>

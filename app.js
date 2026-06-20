@@ -1,5 +1,6 @@
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
-const todayKey = toInputDate(new Date());
+const today = startOfDay(new Date());
+const todayKey = toInputDate(today);
 
 const defaults = {
   lastStart: null,
@@ -8,100 +9,92 @@ const defaults = {
   history: []
 };
 
-const state = { ...defaults, history: [], observation: null };
+const state = {
+  ...defaults,
+  profileId: null,
+  activeUserId: null,
+  cycles: [],
+  observations: [],
+  events: [],
+  selectedDate: todayKey,
+  calendarCursor: new Date(today.getFullYear(), today.getMonth(), 1),
+  activeFilters: new Set(),
+  scores: { libido: null, mood: null, irritability: null, sex: null, conflict: null }
+};
+
 const db = window.ADueDb;
-let profileId = null;
-let activeUserId = null;
-let selectedDay = null;
+const elements = collectElements();
 
-const elements = {
-  authGate: document.querySelector("#authGate"),
-  authForm: document.querySelector("#authForm"),
-  authEmail: document.querySelector("#authEmail"),
-  authPassword: document.querySelector("#authPassword"),
-  authStatus: document.querySelector("#authStatus"),
-  signUp: document.querySelector("#signUp"),
-  signOut: document.querySelector("#signOut"),
-  appShell: document.querySelector("#appShell"),
-  accountEmail: document.querySelector("#accountEmail"),
-  accountInitial: document.querySelector("#accountInitial"),
-  syncStatus: document.querySelector("#syncStatus"),
-  currentMonth: document.querySelector("#currentMonth"),
-  timeline: document.querySelector("#cycleTimeline"),
-  dayContext: document.querySelector("#dayContext"),
-  todayDay: document.querySelector("#todayDay"),
-  phaseTitle: document.querySelector("#phaseTitle"),
-  phaseDescription: document.querySelector("#phaseDescription"),
-  trendDay: document.querySelector("#trendDay"),
-  trendPhase: document.querySelector("#trendPhase"),
-  trendLabel: document.querySelector("#trendLabel"),
-  trendText: document.querySelector("#trendText"),
-  settingsForm: document.querySelector("#settingsForm"),
-  lastStart: document.querySelector("#lastStart"),
-  cycleLength: document.querySelector("#cycleLength"),
-  periodLength: document.querySelector("#periodLength"),
-  markToday: document.querySelector("#markToday"),
-  nextPeriod: document.querySelector("#nextPeriod"),
-  daysUntil: document.querySelector("#daysUntil"),
-  fertileWindow: document.querySelector("#fertileWindow"),
-  historyList: document.querySelector("#historyList"),
-  clearData: document.querySelector("#clearData"),
-  historyFile: document.querySelector("#historyFile"),
-  importHistory: document.querySelector("#importHistory"),
-  importStatus: document.querySelector("#importStatus"),
-  dailyForm: document.querySelector("#dailyForm"),
-  observationStatus: document.querySelector("#observationStatus"),
-  energyInput: document.querySelector("#energyInput"),
-  energyOutput: document.querySelector("#energyOutput"),
-  moodInput: document.querySelector("#moodInput"),
-  moodOutput: document.querySelector("#moodOutput"),
-  libidoInput: document.querySelector("#libidoInput"),
-  libidoOutput: document.querySelector("#libidoOutput"),
-  irritabilityInput: document.querySelector("#irritabilityInput"),
-  irritabilityOutput: document.querySelector("#irritabilityOutput"),
-  painInput: document.querySelector("#painInput"),
-  painOutput: document.querySelector("#painOutput"),
-  notesInput: document.querySelector("#notesInput")
-};
-
-const scoreLabels = {
-  energy: ["Molto bassa", "Bassa", "Moderata", "Buona", "Alta", "Molto alta"],
-  mood: ["Difficile", "Faticoso", "Variabile", "Sereno", "Positivo", "Molto positivo"],
-  libido: ["Assente", "Molto bassa", "Bassa", "Presente", "Alta", "Molto alta"]
-};
-
-elements.currentMonth.textContent = new Intl.DateTimeFormat("it-IT", {
-  month: "long",
-  year: "numeric"
-}).format(new Date()).replace(/^./, (letter) => letter.toUpperCase());
-
-elements.settingsForm.addEventListener("submit", saveCycleSettings);
-elements.markToday.addEventListener("click", markTodayAsStart);
-elements.clearData.addEventListener("click", clearProfile);
-elements.importHistory.addEventListener("click", importHistory);
-elements.dailyForm.addEventListener("submit", saveDailyObservation);
-elements.authForm.addEventListener("submit", signIn);
-elements.signUp.addEventListener("click", signUp);
-elements.signOut.addEventListener("click", signOut);
-
-[
-  [elements.energyInput, elements.energyOutput, "energy"],
-  [elements.moodInput, elements.moodOutput, "mood"],
-  [elements.libidoInput, elements.libidoOutput, "libido"]
-].forEach(([input, output, type]) => {
-  input.addEventListener("input", () => {
-    output.textContent = scoreLabels[type][Number(input.value)];
-  });
-});
-
-[
-  [elements.irritabilityInput, elements.irritabilityOutput],
-  [elements.painInput, elements.painOutput]
-].forEach(([input, output]) => {
-  input.addEventListener("input", () => { output.textContent = input.value; });
-});
-
+bindEvents();
+buildScoreControls();
 initialize();
+
+function collectElements() {
+  const ids = [
+    "authGate", "authForm", "authEmail", "authPassword", "authStatus", "signUp", "signOut", "appShell",
+    "accountEmail", "accountInitial", "syncStatus", "forecastDay", "forecastPhase", "forecastLabel", "forecastText",
+    "todayDay", "cycleTimeline", "phaseTitle", "phaseDescription", "logToday", "todayRecordStatus", "todayLibido",
+    "todayMood", "todayIrritability", "todayLibidoNote", "todayMoodNote", "todayIrritabilityNote", "todayLibidoSpark",
+    "todayMoodSpark", "todayIrritabilitySpark", "settingsForm", "lastStart", "cycleLength", "periodLength", "markToday",
+    "nextPeriod", "predictionRange", "predictionConfidence", "historyList", "historyFile", "importHistory", "importStatus",
+    "clearData", "calendarFilters", "previousMonth", "nextMonth", "calendarMonth", "monthGrid", "logSelected", "feedSummary",
+    "eventList", "patternConfidence", "patternSummary", "libidoChart", "moodChart", "sexPhaseChart", "seasonChart",
+    "patternFindings", "drawerBackdrop", "dayDrawer", "closeDrawer", "drawerTitle", "drawerDate", "dayForm",
+    "periodStartInput", "libidoValue", "moodValue", "irritabilityValue", "sexInput", "sexIntensityField", "sexValue",
+    "conflictInput", "conflictIntensityField", "conflictValue", "otherInput", "otherDetailsLabel", "otherDetailsInput",
+    "dayNotesInput", "drawerStatus"
+  ];
+  return Object.fromEntries(ids.map((id) => [id, document.querySelector(`#${id}`)]));
+}
+
+function bindEvents() {
+  elements.authForm.addEventListener("submit", signIn);
+  elements.signUp.addEventListener("click", signUp);
+  elements.signOut.addEventListener("click", signOut);
+  elements.settingsForm.addEventListener("submit", saveCycleSettings);
+  elements.markToday.addEventListener("click", () => openDayDrawer(todayKey, true));
+  elements.clearData.addEventListener("click", clearProfile);
+  elements.importHistory.addEventListener("click", importHistory);
+  elements.logToday.addEventListener("click", () => openDayDrawer(todayKey));
+  elements.logSelected.addEventListener("click", () => openDayDrawer(state.selectedDate || todayKey));
+  elements.previousMonth.addEventListener("click", () => changeMonth(-1));
+  elements.nextMonth.addEventListener("click", () => changeMonth(1));
+  elements.closeDrawer.addEventListener("click", closeDayDrawer);
+  elements.drawerBackdrop.addEventListener("click", closeDayDrawer);
+  elements.dayForm.addEventListener("submit", saveDay);
+  elements.sexInput.addEventListener("change", syncEventFields);
+  elements.conflictInput.addEventListener("change", syncEventFields);
+  elements.otherInput.addEventListener("change", syncEventFields);
+
+  document.querySelectorAll("[data-view-target]").forEach((button) => {
+    button.addEventListener("click", () => switchView(button.dataset.viewTarget));
+  });
+
+  elements.calendarFilters.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-filter]");
+    if (!button) return;
+    toggleFilter(button.dataset.filter);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !elements.dayDrawer.hidden) closeDayDrawer();
+  });
+}
+
+function buildScoreControls() {
+  ["libido", "mood", "irritability", "sex", "conflict"].forEach((type) => {
+    const container = document.querySelector(`[data-score="${type}"]`);
+    for (let value = 1; value <= 10; value += 1) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = value;
+      button.dataset.value = value;
+      button.setAttribute("aria-label", `${type} ${value} su 10`);
+      button.addEventListener("click", () => setScore(type, value));
+      container.appendChild(button);
+    }
+  });
+}
 
 async function initialize() {
   if (!db) {
@@ -158,113 +151,474 @@ async function signOut() {
 }
 
 async function activateSession(session) {
-  if (activeUserId === session.user.id && profileId) return;
+  if (state.activeUserId === session.user.id && state.profileId) return;
   elements.authStatus.textContent = "Caricamento profilo...";
-
   const profile = await db.loadProfile(defaults);
-  const [events, observation] = await Promise.all([
-    db.loadCycleEvents(profile.id),
-    db.loadObservation(profile.id, todayKey)
-  ]);
 
-  profileId = profile.id;
-  activeUserId = session.user.id;
+  state.profileId = profile.id;
+  state.activeUserId = session.user.id;
   state.cycleLength = profile.cycle_length;
   state.periodLength = profile.period_length;
-  state.history = events.map((event) => event.start_date);
-  state.lastStart = state.history[0] ?? null;
-  state.observation = observation;
-  selectedDay = state.lastStart ? getCycleDay(parseLocalDate(state.lastStart), state.cycleLength) : null;
+  await reloadData();
 
-  syncInputs();
-  populateObservation();
   elements.accountEmail.textContent = session.user.email;
   elements.accountInitial.textContent = (session.user.email?.[0] || "A").toUpperCase();
+  elements.authPassword.value = "";
   elements.authGate.hidden = true;
   elements.appShell.hidden = false;
-  elements.authPassword.value = "";
   setSyncStatus("Sincronizzato");
-  render();
+  syncSettingsInputs();
+  renderAll();
 }
 
 function showAuth() {
-  activeUserId = null;
-  profileId = null;
+  state.activeUserId = null;
+  state.profileId = null;
   elements.appShell.hidden = true;
   elements.authGate.hidden = false;
   elements.authStatus.textContent = "";
   elements.accountEmail.textContent = "";
 }
 
+async function reloadData() {
+  const [cycles, observations, events] = await Promise.all([
+    db.loadCycleEvents(state.profileId),
+    db.loadAllObservations(state.profileId),
+    db.loadTimelineEvents(state.profileId)
+  ]);
+  state.cycles = cycles;
+  state.observations = observations;
+  state.events = events;
+  state.history = cycles.map((cycle) => cycle.start_date);
+  state.lastStart = state.history[0] ?? null;
+}
+
+function renderAll() {
+  renderToday();
+  renderCalendar();
+  renderPatterns();
+  renderHistory();
+}
+
+function switchView(view) {
+  document.querySelectorAll("[data-view]").forEach((panel) => {
+    const active = panel.dataset.view === view;
+    panel.hidden = !active;
+    panel.classList.toggle("is-active", active);
+  });
+  document.querySelectorAll("[data-view-target]").forEach((button) => {
+    const active = button.dataset.viewTarget === view;
+    button.classList.toggle("is-active", active);
+    if (active) button.setAttribute("aria-current", "page");
+    else button.removeAttribute("aria-current");
+  });
+  if (view === "calendar") renderCalendar();
+  if (view === "patterns") renderPatterns();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function renderToday() {
+  const stats = getPredictionStats();
+  const cycleInfo = getCycleInfo(todayKey);
+  const phase = cycleInfo ? getPhase(cycleInfo.day, stats.length, state.periodLength) : null;
+
+  renderTimeline(cycleInfo?.day ?? null, stats.length);
+  setBodyPhase(phase?.className ?? "phase-follicular");
+
+  if (!cycleInfo) {
+    elements.todayDay.textContent = "-";
+    elements.phaseTitle.textContent = "Imposta il ciclo";
+    elements.phaseDescription.textContent = "Registra l'inizio delle mestruazioni di oggi o di una data passata per cominciare.";
+    elements.forecastDay.textContent = "Ciclo non impostato";
+    elements.forecastPhase.textContent = "In attesa dei dati";
+    elements.forecastLabel.textContent = "Previsione orientativa";
+    elements.forecastText.textContent = "Con ogni nuova data la stima del ciclo successivo diventa piu personale.";
+    elements.nextPeriod.textContent = "-";
+    elements.predictionRange.textContent = "-";
+    elements.predictionConfidence.textContent = "In attesa";
+  } else {
+    elements.todayDay.textContent = cycleInfo.day;
+    elements.phaseTitle.textContent = phase.label;
+    elements.phaseDescription.textContent = phase.description;
+    elements.forecastDay.textContent = `Giorno ${cycleInfo.day}`;
+    elements.forecastPhase.textContent = phase.label;
+    elements.forecastLabel.textContent = phase.trend;
+    elements.forecastText.textContent = getPersonalForecast(cycleInfo.day, phase);
+    elements.nextPeriod.textContent = stats.nextDate ? formatDate(stats.nextDate) : "-";
+    elements.predictionRange.textContent = stats.rangeLabel;
+    elements.predictionConfidence.textContent = stats.confidence;
+  }
+
+  const observation = observationFor(todayKey);
+  elements.todayRecordStatus.textContent = hasDayData(todayKey) ? "Giornata registrata" : "Nessuna osservazione registrata";
+  setTodayMetric("Libido", observation?.libido, elements.todayLibido, elements.todayLibidoNote);
+  setTodayMetric("Umore", observation?.mood, elements.todayMood, elements.todayMoodNote);
+  setTodayMetric("Irritabilita", observation?.irritability, elements.todayIrritability, elements.todayIrritabilityNote);
+  renderSparkline(elements.todayLibidoSpark, recentSeries("libido"));
+  renderSparkline(elements.todayMoodSpark, recentSeries("mood"));
+  renderSparkline(elements.todayIrritabilitySpark, recentSeries("irritability"));
+}
+
+function renderTimeline(currentDay, length) {
+  elements.cycleTimeline.innerHTML = "";
+  const total = Math.max(length, currentDay || 0, 21);
+  for (let day = 1; day <= Math.min(total, 60); day += 1) {
+    const node = document.createElement("span");
+    node.className = "timeline-day";
+    node.textContent = day;
+    if (day === currentDay) node.classList.add("is-current");
+    elements.cycleTimeline.appendChild(node);
+  }
+
+  window.requestAnimationFrame(() => {
+    const current = elements.cycleTimeline.querySelector(".is-current");
+    const wrap = elements.cycleTimeline.parentElement;
+    if (current && wrap.scrollWidth > wrap.clientWidth) {
+      wrap.scrollLeft = current.offsetLeft - wrap.clientWidth / 2 + current.clientWidth / 2;
+    }
+  });
+}
+
+function setTodayMetric(label, value, output, note) {
+  const score = normalizeScore(value);
+  output.textContent = score ? `${score}/10` : "-";
+  note.textContent = score ? `${label} registrata oggi` : "Non ancora registrata";
+}
+
+function recentSeries(field) {
+  return [...state.observations]
+    .filter((item) => normalizeScore(item[field]))
+    .sort((a, b) => a.observation_date.localeCompare(b.observation_date))
+    .slice(-14)
+    .map((item) => normalizeScore(item[field]));
+}
+
+function renderSparkline(container, values) {
+  if (values.length < 2) {
+    container.innerHTML = "";
+    return;
+  }
+  const width = 260;
+  const height = 56;
+  const points = values.map((value, index) => {
+    const x = values.length === 1 ? width / 2 : (index / (values.length - 1)) * width;
+    const y = height - ((value - 1) / 9) * (height - 8) - 4;
+    return `${x},${y}`;
+  }).join(" ");
+  container.innerHTML = `<svg viewBox="0 0 ${width} ${height}" aria-hidden="true"><polyline points="${points}" fill="none" stroke="currentColor" stroke-width="2"/><line x1="0" y1="${height - 4}" x2="${width}" y2="${height - 4}" stroke="currentColor" opacity=".15"/></svg>`;
+}
+
+function renderCalendar() {
+  const year = state.calendarCursor.getFullYear();
+  const month = state.calendarCursor.getMonth();
+  elements.calendarMonth.textContent = capitalize(new Intl.DateTimeFormat("it-IT", { month: "long", year: "numeric" }).format(state.calendarCursor));
+  elements.monthGrid.innerHTML = "";
+
+  const firstWeekday = (new Date(year, month, 1).getDay() + 6) % 7;
+  const gridStart = new Date(year, month, 1 - firstWeekday);
+  const predictedDates = getPredictedStartKeys(8);
+
+  for (let index = 0; index < 42; index += 1) {
+    const date = addDays(gridStart, index);
+    const dateKey = toInputDate(date);
+    const data = dayData(dateKey);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "calendar-day";
+    button.setAttribute("aria-label", calendarAriaLabel(dateKey, data, predictedDates.has(dateKey)));
+    if (date.getMonth() !== month) button.classList.add("is-outside");
+    if (dateKey === todayKey) button.classList.add("is-today");
+    if (dateKey === state.selectedDate) button.classList.add("is-selected");
+    if (predictedDates.has(dateKey) && dateKey > todayKey) button.classList.add("is-predicted");
+    if (!matchesActiveFilters(data)) button.classList.add("is-filtered-out");
+
+    const cycleInfo = getCycleInfo(dateKey);
+    button.innerHTML = `<span class="day-number">${date.getDate()}</span>${cycleInfo ? `<span class="day-cycle-label">Giorno ${cycleInfo.day}</span>` : ""}<span class="day-markers">${renderDayMarkers(data)}</span>`;
+    button.addEventListener("click", () => {
+      state.selectedDate = dateKey;
+      if (date.getMonth() !== month) state.calendarCursor = new Date(date.getFullYear(), date.getMonth(), 1);
+      renderCalendar();
+      openDayDrawer(dateKey);
+    });
+    elements.monthGrid.appendChild(button);
+  }
+  renderEventFeed(year, month);
+}
+
+function renderDayMarkers(data) {
+  const markers = [];
+  if (data.period) markers.push("period");
+  if (data.sex) markers.push("sex");
+  if (data.conflict) markers.push("conflict");
+  if (data.notes) markers.push("note");
+  if (data.other) markers.push("other");
+  return markers.map((marker) => `<i class="day-marker ${marker}" aria-hidden="true"></i>`).join("");
+}
+
+function dayData(dateKey) {
+  const observation = observationFor(dateKey);
+  const events = eventsFor(dateKey);
+  return {
+    dateKey,
+    period: state.cycles.some((cycle) => cycle.start_date === dateKey),
+    sex: events.find((event) => event.category === "sex") ?? null,
+    conflict: events.find((event) => event.category === "conflict") ?? null,
+    other: events.find((event) => event.category === "other") ?? null,
+    notes: observation?.notes || "",
+    libido: normalizeScore(observation?.libido),
+    mood: normalizeScore(observation?.mood),
+    irritability: normalizeScore(observation?.irritability),
+    observation
+  };
+}
+
+function matchesActiveFilters(data) {
+  if (state.activeFilters.size === 0) return true;
+  return [...state.activeFilters].every((filter) => {
+    if (filter === "period") return data.period;
+    if (filter === "sex") return Boolean(data.sex);
+    if (filter === "conflict") return Boolean(data.conflict);
+    if (filter === "high-libido") return data.libido >= 7;
+    if (filter === "low-mood") return data.mood && data.mood <= 4;
+    if (filter === "notes") return Boolean(data.notes);
+    if (filter === "other") return Boolean(data.other);
+    return true;
+  });
+}
+
+function toggleFilter(filter) {
+  if (filter === "all") state.activeFilters.clear();
+  else if (state.activeFilters.has(filter)) state.activeFilters.delete(filter);
+  else state.activeFilters.add(filter);
+
+  elements.calendarFilters.querySelectorAll("button[data-filter]").forEach((button) => {
+    const key = button.dataset.filter;
+    const active = key === "all" ? state.activeFilters.size === 0 : state.activeFilters.has(key);
+    button.classList.toggle("is-active", active);
+  });
+  renderCalendar();
+}
+
+function renderEventFeed(year, month) {
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const matchingDays = [];
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const dateKey = toInputDate(new Date(year, month, day));
+    const data = dayData(dateKey);
+    if (hasDayData(dateKey) && matchesActiveFilters(data)) matchingDays.push(data);
+  }
+  matchingDays.sort((a, b) => b.dateKey.localeCompare(a.dateKey));
+  elements.feedSummary.textContent = `${matchingDays.length} ${matchingDays.length === 1 ? "giorno" : "giorni"} corrispondenti`;
+  elements.eventList.innerHTML = "";
+
+  if (matchingDays.length === 0) {
+    const item = document.createElement("li");
+    item.className = "event-empty";
+    item.textContent = state.activeFilters.size ? "Nessun giorno corrisponde a tutti i filtri selezionati." : "Nessun evento registrato in questo mese.";
+    elements.eventList.appendChild(item);
+    return;
+  }
+
+  matchingDays.forEach((data) => {
+    const labels = dayLabels(data);
+    const item = document.createElement("li");
+    item.className = "event-item";
+    const marker = document.createElement("i");
+    marker.className = `filter-dot ${primaryMarker(data)}`;
+    const button = document.createElement("button");
+    button.type = "button";
+    const strong = document.createElement("strong");
+    strong.textContent = formatDate(parseLocalDate(data.dateKey));
+    const small = document.createElement("small");
+    small.textContent = labels.join(" · ");
+    button.append(strong, small);
+    const time = document.createElement("time");
+    const cycleDay = getCycleInfo(data.dateKey)?.day;
+    time.textContent = cycleDay ? `G${cycleDay}` : "";
+    item.append(marker, button, time);
+    button.addEventListener("click", () => openDayDrawer(data.dateKey));
+    elements.eventList.appendChild(item);
+  });
+}
+
+function dayLabels(data) {
+  const labels = [];
+  if (data.period) labels.push("Inizio mestruazioni");
+  if (data.sex) labels.push(`Sesso ${data.sex.intensity || ""}`.trim());
+  if (data.conflict) labels.push(`Litigio ${data.conflict.intensity || ""}`.trim());
+  if (data.libido) labels.push(`Libido ${data.libido}/10`);
+  if (data.mood) labels.push(`Umore ${data.mood}/10`);
+  if (data.notes) labels.push("Nota");
+  if (data.other) labels.push(data.other.details || "Altro");
+  return labels;
+}
+
+function primaryMarker(data) {
+  if (data.period) return "period";
+  if (data.sex) return "sex";
+  if (data.conflict) return "conflict";
+  if (data.notes) return "note";
+  return "";
+}
+
+function calendarAriaLabel(dateKey, data, predicted) {
+  const labels = dayLabels(data);
+  if (predicted && dateKey > todayKey) labels.push("Mestruazioni previste");
+  return `${formatDate(parseLocalDate(dateKey))}${labels.length ? `, ${labels.join(", ")}` : ""}`;
+}
+
+function changeMonth(offset) {
+  state.calendarCursor = new Date(state.calendarCursor.getFullYear(), state.calendarCursor.getMonth() + offset, 1);
+  renderCalendar();
+}
+
+function openDayDrawer(dateKey, forcePeriodStart = false) {
+  state.selectedDate = dateKey;
+  const observation = observationFor(dateKey);
+  const data = dayData(dateKey);
+  const sex = data.sex;
+  const conflict = data.conflict;
+
+  state.scores = {
+    libido: normalizeScore(observation?.libido),
+    mood: normalizeScore(observation?.mood),
+    irritability: normalizeScore(observation?.irritability),
+    sex: normalizeScore(sex?.intensity),
+    conflict: normalizeScore(conflict?.intensity)
+  };
+  elements.drawerTitle.textContent = dateKey === todayKey ? "Registra oggi" : "Registra giornata";
+  elements.drawerDate.textContent = capitalize(formatDate(parseLocalDate(dateKey)));
+  elements.periodStartInput.checked = forcePeriodStart || data.period;
+  elements.sexInput.checked = Boolean(sex);
+  elements.conflictInput.checked = Boolean(conflict);
+  elements.otherInput.checked = Boolean(data.other);
+  elements.otherDetailsInput.value = data.other?.details ?? "";
+  elements.dayNotesInput.value = observation?.notes ?? "";
+  elements.drawerStatus.textContent = "";
+  renderScoreSelections();
+  syncEventFields();
+  elements.drawerBackdrop.hidden = false;
+  elements.dayDrawer.hidden = false;
+  document.body.classList.add("is-drawer-open");
+  window.setTimeout(() => elements.closeDrawer.focus(), 0);
+}
+
+function closeDayDrawer() {
+  elements.drawerBackdrop.hidden = true;
+  elements.dayDrawer.hidden = true;
+  document.body.classList.remove("is-drawer-open");
+}
+
+function setScore(type, value) {
+  state.scores[type] = state.scores[type] === value ? null : value;
+  renderScoreSelections();
+}
+
+function renderScoreSelections() {
+  const outputMap = {
+    libido: elements.libidoValue,
+    mood: elements.moodValue,
+    irritability: elements.irritabilityValue,
+    sex: elements.sexValue,
+    conflict: elements.conflictValue
+  };
+  Object.entries(state.scores).forEach(([type, selected]) => {
+    const container = document.querySelector(`[data-score="${type}"]`);
+    container.querySelectorAll("button").forEach((button) => {
+      const active = Number(button.dataset.value) === selected;
+      button.classList.toggle("is-selected", active);
+      button.setAttribute("aria-pressed", String(active));
+    });
+    outputMap[type].textContent = selected ? `${selected}/10` : type === "mood" ? "Non registrato" : "Non registrata";
+  });
+}
+
+function syncEventFields() {
+  elements.sexIntensityField.disabled = !elements.sexInput.checked;
+  elements.conflictIntensityField.disabled = !elements.conflictInput.checked;
+  elements.otherDetailsLabel.hidden = !elements.otherInput.checked;
+  if (!elements.sexInput.checked) state.scores.sex = null;
+  if (!elements.conflictInput.checked) state.scores.conflict = null;
+  renderScoreSelections();
+}
+
+async function saveDay(event) {
+  event.preventDefault();
+  const dateKey = state.selectedDate;
+  const currentObservation = observationFor(dateKey);
+  elements.drawerStatus.textContent = "Salvataggio...";
+  setSyncStatus("Salvataggio...");
+
+  try {
+    const isExistingPeriodStart = state.cycles.some((cycle) => cycle.start_date === dateKey);
+    if (elements.periodStartInput.checked && !isExistingPeriodStart) await db.saveCycleStart(state.profileId, dateKey);
+    if (!elements.periodStartInput.checked && isExistingPeriodStart) await db.deleteCycleStart(state.profileId, dateKey);
+
+    await db.saveObservation(state.profileId, {
+      date: dateKey,
+      libido: state.scores.libido,
+      mood: state.scores.mood,
+      irritability: state.scores.irritability,
+      energy: normalizeScore(currentObservation?.energy),
+      pain: normalizeScore(currentObservation?.pain),
+      notes: elements.dayNotesInput.value.trim() || null
+    });
+
+    await syncTimelineEvent("sex", elements.sexInput.checked, state.scores.sex, null);
+    await syncTimelineEvent("conflict", elements.conflictInput.checked, state.scores.conflict, null);
+    await syncTimelineEvent("other", elements.otherInput.checked, null, elements.otherDetailsInput.value.trim() || null);
+
+    await reloadData();
+    syncSettingsInputs();
+    renderAll();
+    elements.drawerStatus.textContent = "Giornata salvata";
+    setSyncStatus("Sincronizzato");
+    window.setTimeout(closeDayDrawer, 350);
+  } catch (error) {
+    elements.drawerStatus.textContent = `Errore: ${readableError(error)}`;
+    setSyncStatus("Errore di salvataggio");
+  }
+}
+
+async function syncTimelineEvent(category, enabled, intensity, details) {
+  const existing = eventsFor(state.selectedDate).some((event) => event.category === category);
+  if (enabled) {
+    await db.saveTimelineEvent(state.profileId, { date: state.selectedDate, category, intensity, details });
+  } else if (existing) {
+    await db.deleteTimelineEvent(state.profileId, state.selectedDate, category);
+  }
+}
+
 async function saveCycleSettings(event) {
   event.preventDefault();
-  state.lastStart = elements.lastStart.value;
-  state.cycleLength = clamp(Number(elements.cycleLength.value), 21, 40);
-  state.periodLength = clamp(Number(elements.periodLength.value), 1, 10);
-  addHistoryDate(state.lastStart);
-
+  const startDate = elements.lastStart.value;
+  const length = clamp(Number(elements.cycleLength.value), 21, 40);
+  const periodLength = clamp(Number(elements.periodLength.value), 1, 10);
   try {
     setSyncStatus("Salvataggio...");
-    await db.saveSettings(profileId, state.cycleLength, state.periodLength);
-    await db.saveCycleStart(profileId, state.lastStart);
-    selectedDay = getCycleDay(parseLocalDate(state.lastStart), state.cycleLength);
-    render();
+    await db.saveSettings(state.profileId, length, periodLength);
+    await db.saveCycleStart(state.profileId, startDate);
+    state.cycleLength = length;
+    state.periodLength = periodLength;
+    await reloadData();
+    renderAll();
     setSyncStatus("Salvato");
   } catch (error) {
     setSyncStatus(`Errore: ${readableError(error)}`);
-  }
-}
-
-async function markTodayAsStart() {
-  state.lastStart = todayKey;
-  addHistoryDate(todayKey);
-  syncInputs();
-  try {
-    setSyncStatus("Salvataggio...");
-    await db.saveSettings(profileId, state.cycleLength, state.periodLength);
-    await db.saveCycleStart(profileId, todayKey);
-    selectedDay = 1;
-    render();
-    setSyncStatus("Salvato");
-  } catch (error) {
-    setSyncStatus(`Errore: ${readableError(error)}`);
-  }
-}
-
-async function saveDailyObservation(event) {
-  event.preventDefault();
-  elements.observationStatus.textContent = "Salvataggio...";
-  const observation = {
-    date: todayKey,
-    energy: Number(elements.energyInput.value),
-    mood: Number(elements.moodInput.value),
-    libido: Number(elements.libidoInput.value),
-    irritability: Number(elements.irritabilityInput.value),
-    pain: Number(elements.painInput.value),
-    notes: elements.notesInput.value.trim() || null
-  };
-
-  try {
-    state.observation = await db.saveObservation(profileId, observation);
-    populateObservation();
-    elements.observationStatus.textContent = "Salvata nel diario";
-    setSyncStatus("Sincronizzato");
-  } catch (error) {
-    elements.observationStatus.textContent = `Errore: ${readableError(error)}`;
   }
 }
 
 async function clearProfile() {
-  const confirmed = window.confirm("Cancellare dal database tutte le date e le osservazioni del profilo?");
+  const confirmed = window.confirm("Cancellare dal database tutte le date, gli eventi e le osservazioni del profilo?");
   if (!confirmed) return;
   try {
     setSyncStatus("Cancellazione...");
-    await db.clearProfileData(profileId, defaults);
-    Object.assign(state, { ...defaults, history: [], observation: null });
-    selectedDay = null;
-    syncInputs();
-    populateObservation();
-    render();
+    await db.clearProfileData(state.profileId, defaults);
+    state.cycleLength = defaults.cycleLength;
+    state.periodLength = defaults.periodLength;
+    await reloadData();
+    syncSettingsInputs();
+    renderAll();
     setSyncStatus("Dati cancellati");
   } catch (error) {
     setSyncStatus(`Errore: ${readableError(error)}`);
@@ -278,7 +632,6 @@ async function importHistory() {
     return;
   }
   elements.importStatus.textContent = "Lettura e controllo...";
-
   try {
     const parsed = window.Papa.parse(await file.text(), {
       header: true,
@@ -286,20 +639,11 @@ async function importHistory() {
       transformHeader: (header) => header.trim().toLowerCase()
     });
     if (parsed.errors.length > 0) throw new Error(parsed.errors[0].message);
-
     const normalized = normalizeHistoricalRows(parsed.data);
-    await db.importHistory(profileId, normalized.cycleStarts, normalized.observations);
-    const [events, observation] = await Promise.all([
-      db.loadCycleEvents(profileId),
-      db.loadObservation(profileId, todayKey)
-    ]);
-    state.history = events.map((item) => item.start_date);
-    state.lastStart = state.history[0] ?? null;
-    state.observation = observation;
-    selectedDay = state.lastStart ? getCycleDay(parseLocalDate(state.lastStart), state.cycleLength) : null;
-    syncInputs();
-    populateObservation();
-    render();
+    await db.importHistory(state.profileId, normalized.cycleStarts, normalized.observations);
+    await reloadData();
+    syncSettingsInputs();
+    renderAll();
     elements.historyFile.value = "";
     elements.importStatus.textContent = `${normalized.total} righe importate.`;
   } catch (error) {
@@ -307,169 +651,222 @@ async function importHistory() {
   }
 }
 
-function render() {
-  const cycleLength = clamp(Number(state.cycleLength), 21, 40);
-  const periodLength = clamp(Number(state.periodLength), 1, 10);
-  const hasCycle = Boolean(state.lastStart);
-  const lastStart = hasCycle ? parseLocalDate(state.lastStart) : null;
-  const currentDay = hasCycle ? getCycleDay(lastStart, cycleLength) : null;
+function renderPatterns() {
+  const stats = getPredictionStats();
+  elements.patternConfidence.textContent = stats.confidence;
+  const trackedDays = state.observations.filter((item) => hasObservationValues(item)).length;
+  const sexEvents = state.events.filter((item) => item.category === "sex").length;
+  const conflictEvents = state.events.filter((item) => item.category === "conflict").length;
+  elements.patternSummary.innerHTML = [
+    ["Cicli registrati", state.cycles.length],
+    ["Giorni osservati", trackedDays],
+    ["Eventi intimi", sexEvents],
+    ["Litigi registrati", conflictEvents]
+  ].map(([label, value]) => `<div class="summary-stat"><span>${label}</span><strong>${value}</strong></div>`).join("");
 
-  if (!selectedDay || selectedDay > cycleLength) selectedDay = currentDay;
-  renderTimeline(cycleLength, periodLength, currentDay);
+  const libidoByDay = averageByCycleDay("libido");
+  const moodByDay = averageByCycleDay("mood");
+  const irritabilityByDay = averageByCycleDay("irritability");
+  renderLineChart(elements.libidoChart, [{ values: libidoByDay, className: "chart-line-libido", color: "var(--sex)" }], "Servono osservazioni di libido distribuite nel ciclo.");
+  renderLineChart(elements.moodChart, [
+    { values: moodByDay, className: "chart-line-mood", color: "var(--note)" },
+    { values: irritabilityByDay, className: "chart-line-irritability", color: "var(--conflict)" }
+  ], "Servono osservazioni di umore e irritabilita.");
+  renderBarChart(elements.sexPhaseChart, intimacyByPhase(), "Servono eventi intimi associati a cicli registrati.");
+  renderBarChart(elements.seasonChart, libidoBySeason(), "Servono dati raccolti in periodi diversi dell'anno.");
+  renderPatternFindings(libidoByDay, irritabilityByDay);
+}
 
-  if (!hasCycle) {
-    document.body.className = "phase-follicular";
-    elements.dayContext.textContent = "Oggi";
-    elements.todayDay.textContent = "-";
-    elements.phaseTitle.textContent = "Imposta una data";
-    elements.phaseDescription.textContent = "Registra l'ultimo inizio delle mestruazioni per visualizzare una stima del ciclo.";
-    elements.trendDay.textContent = "Ciclo non impostato";
-    elements.trendPhase.textContent = "In attesa dei dati";
-    elements.trendLabel.textContent = "Andamento orientativo";
-    elements.trendText.textContent = "Le osservazioni quotidiane renderanno il quadro piu personale nel tempo.";
-    elements.nextPeriod.textContent = "-";
-    elements.daysUntil.textContent = "-";
-    elements.fertileWindow.textContent = "-";
-    renderHistory();
+function averageByCycleDay(field) {
+  const buckets = new Map();
+  state.observations.forEach((observation) => {
+    const value = normalizeScore(observation[field]);
+    const cycleInfo = getCycleInfo(observation.observation_date);
+    if (!value || !cycleInfo || cycleInfo.day > 60) return;
+    if (!buckets.has(cycleInfo.day)) buckets.set(cycleInfo.day, []);
+    buckets.get(cycleInfo.day).push(value);
+  });
+  return [...buckets.entries()].map(([x, values]) => ({ x, y: average(values), count: values.length })).sort((a, b) => a.x - b.x);
+}
+
+function intimacyByPhase() {
+  const counts = new Map([["Mestr.", 0], ["Follic.", 0], ["Fertile", 0], ["Luteale", 0]]);
+  const stats = getPredictionStats();
+  state.events.filter((event) => event.category === "sex").forEach((event) => {
+    const info = getCycleInfo(event.event_date);
+    if (!info) return;
+    const phase = getPhase(info.day, stats.length, state.periodLength).shortLabel;
+    counts.set(phase, (counts.get(phase) || 0) + 1);
+  });
+  return [...counts.entries()].map(([label, value]) => ({ label, value })).filter((item) => item.value > 0);
+}
+
+function libidoBySeason() {
+  const buckets = new Map([["Inv", []], ["Pri", []], ["Est", []], ["Aut", []]]);
+  state.observations.forEach((observation) => {
+    const value = normalizeScore(observation.libido);
+    if (!value) return;
+    const month = parseLocalDate(observation.observation_date).getMonth();
+    const label = month === 11 || month <= 1 ? "Inv" : month <= 4 ? "Pri" : month <= 7 ? "Est" : "Aut";
+    buckets.get(label).push(value);
+  });
+  return [...buckets.entries()].filter(([, values]) => values.length > 0).map(([label, values]) => ({ label, value: average(values), count: values.length }));
+}
+
+function renderLineChart(container, series, emptyText) {
+  const all = series.flatMap((item) => item.values);
+  if (all.length === 0) {
+    container.innerHTML = `<div class="chart-empty">${emptyText}</div>`;
     return;
   }
-
-  const displayedDay = selectedDay || currentDay;
-  const phase = getPhase(displayedDay, periodLength, cycleLength);
-  const selectedIsToday = displayedDay === currentDay;
-  const nextStart = addDays(lastStart, cycleLength);
-  const ovulationDay = Math.max(1, cycleLength - 14);
-  const fertileStart = addDays(lastStart, Math.max(0, ovulationDay - 5));
-  const fertileEnd = addDays(lastStart, ovulationDay);
-
-  document.body.className = phase.className;
-  elements.dayContext.textContent = selectedIsToday ? "Oggi" : "Anteprima";
-  elements.todayDay.textContent = displayedDay;
-  elements.phaseTitle.textContent = phase.label;
-  elements.phaseDescription.textContent = phase.description;
-  elements.trendDay.textContent = `Giorno ${displayedDay}`;
-  elements.trendPhase.textContent = phase.label;
-  elements.trendLabel.textContent = phase.trend;
-  elements.trendText.textContent = phase.guidance;
-  elements.nextPeriod.textContent = formatDate(nextStart);
-  elements.daysUntil.textContent = getDaysUntil(nextStart);
-  elements.fertileWindow.textContent = `${formatShortDate(fertileStart)} - ${formatShortDate(fertileEnd)}`;
-  renderHistory();
+  const width = 620;
+  const height = 210;
+  const pad = { left: 34, right: 14, top: 10, bottom: 28 };
+  const maxX = Math.max(28, ...all.map((point) => point.x));
+  const xPos = (x) => pad.left + ((x - 1) / Math.max(1, maxX - 1)) * (width - pad.left - pad.right);
+  const yPos = (y) => pad.top + ((10 - y) / 9) * (height - pad.top - pad.bottom);
+  const grid = [1, 5, 10].map((value) => `<line class="chart-grid-line" x1="${pad.left}" y1="${yPos(value)}" x2="${width - pad.right}" y2="${yPos(value)}"/><text class="chart-label" x="3" y="${yPos(value) + 3}">${value}</text>`).join("");
+  const axes = [1, Math.round(maxX / 2), maxX].map((value) => `<text class="chart-label" text-anchor="middle" x="${xPos(value)}" y="${height - 6}">${value}</text>`).join("");
+  const paths = series.map((item) => {
+    if (item.values.length === 0) return "";
+    const points = item.values.map((point) => `${xPos(point.x)},${yPos(point.y)}`).join(" ");
+    const dots = item.values.map((point) => `<circle class="chart-point" cx="${xPos(point.x)}" cy="${yPos(point.y)}" r="4" fill="${item.color}"/>`).join("");
+    return `<polyline class="${item.className}" points="${points}"/>${dots}`;
+  }).join("");
+  container.innerHTML = `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Grafico per giorno del ciclo">${grid}<line class="chart-axis" x1="${pad.left}" y1="${height - pad.bottom}" x2="${width - pad.right}" y2="${height - pad.bottom}"/>${axes}${paths}</svg>`;
 }
 
-function renderTimeline(cycleLength, periodLength, currentDay) {
-  elements.timeline.innerHTML = "";
-  for (let day = 1; day <= cycleLength; day += 1) {
-    const button = document.createElement("button");
-    const phase = getPhase(day, periodLength, cycleLength);
-    button.type = "button";
-    button.className = "timeline-day";
-    button.textContent = day;
-    button.setAttribute("aria-label", `Giorno ${day}, ${phase.label}`);
-    button.disabled = !currentDay;
-    if (day === currentDay) button.classList.add("is-current");
-    if (day === selectedDay) button.classList.add("is-selected");
-    button.addEventListener("click", () => {
-      selectedDay = day;
-      render();
-    });
-    elements.timeline.appendChild(button);
+function renderBarChart(container, data, emptyText) {
+  if (data.length === 0) {
+    container.innerHTML = `<div class="chart-empty">${emptyText}</div>`;
+    return;
   }
-
-  window.requestAnimationFrame(() => {
-    const selected = elements.timeline.querySelector(".is-selected");
-    const wrap = elements.timeline.parentElement;
-    if (selected && wrap.scrollWidth > wrap.clientWidth) {
-      wrap.scrollLeft = selected.offsetLeft - wrap.clientWidth / 2 + selected.clientWidth / 2;
-    }
-  });
+  const width = 420;
+  const height = 210;
+  const top = 18;
+  const bottom = 34;
+  const max = Math.max(...data.map((item) => item.value), 1);
+  const slot = width / data.length;
+  const barWidth = Math.min(56, slot * .52);
+  const bars = data.map((item, index) => {
+    const barHeight = (item.value / max) * (height - top - bottom);
+    const x = index * slot + (slot - barWidth) / 2;
+    const y = height - bottom - barHeight;
+    return `<rect class="chart-bar" x="${x}" y="${y}" width="${barWidth}" height="${barHeight}" rx="2"/><text class="chart-label" text-anchor="middle" x="${x + barWidth / 2}" y="${height - 10}">${item.label}</text><text class="chart-label" text-anchor="middle" x="${x + barWidth / 2}" y="${Math.max(11, y - 6)}">${formatNumber(item.value)}</text>`;
+  }).join("");
+  container.innerHTML = `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Grafico a barre">${bars}</svg>`;
 }
 
-function getPhase(day, periodLength, cycleLength) {
-  const ovulationDay = Math.max(1, cycleLength - 14);
+function renderPatternFindings(libidoByDay, irritabilityByDay) {
+  const findings = [];
+  if (state.cycles.length < 2) findings.push("Registra almeno due inizi del ciclo per calcolare una durata personale.");
+  if (state.observations.length < 10) findings.push("Con almeno dieci giornate osservate inizieranno a emergere confronti piu utili.");
+  const libidoPeak = maxPoint(libidoByDay);
+  if (libidoPeak) findings.push(`La libido media piu alta finora compare intorno al giorno ${libidoPeak.x} del ciclo (${formatNumber(libidoPeak.y)}/10).`);
+  const irritationPeak = maxPoint(irritabilityByDay);
+  if (irritationPeak) findings.push(`L'irritabilita media piu alta registrata compare intorno al giorno ${irritationPeak.x} (${formatNumber(irritationPeak.y)}/10).`);
+  const phaseData = intimacyByPhase();
+  if (phaseData.length) {
+    const topPhase = [...phaseData].sort((a, b) => b.value - a.value)[0];
+    findings.push(`Gli eventi intimi registrati sono piu frequenti nella fase ${topPhase.label.toLowerCase()}.`);
+  }
+  if (findings.length === 0) findings.push("Continua a registrare le giornate: i pattern appariranno qui senza forzare conclusioni.");
+  elements.patternFindings.innerHTML = findings.map((finding) => `<li>${finding}</li>`).join("");
+}
+
+function getPredictionStats() {
+  const dates = state.cycles.map((cycle) => parseLocalDate(cycle.start_date)).sort((a, b) => a - b);
+  const intervals = [];
+  for (let index = 1; index < dates.length; index += 1) {
+    const interval = dayDifference(dates[index - 1], dates[index]);
+    if (interval >= 15 && interval <= 60) intervals.push(interval);
+  }
+  const length = intervals.length ? Math.round(median(intervals)) : state.cycleLength;
+  const deviation = intervals.length > 1 ? Math.max(1, Math.round(average(intervals.map((value) => Math.abs(value - median(intervals)))))) : 2;
+  const latest = dates.length ? dates[dates.length - 1] : null;
+  let nextDate = latest ? addDays(latest, length) : null;
+  while (nextDate && nextDate < today) nextDate = addDays(nextDate, length);
+  const confidence = intervals.length >= 5 && deviation <= 3 ? "Alta" : intervals.length >= 2 ? "Media" : intervals.length >= 1 ? "In crescita" : "In attesa";
+  const rangeLabel = nextDate ? `${formatShortDate(addDays(nextDate, -deviation))} - ${formatShortDate(addDays(nextDate, deviation))}` : "-";
+  return { length, deviation, nextDate, confidence, rangeLabel, intervals };
+}
+
+function getPredictedStartKeys(count) {
+  const result = new Set();
+  const stats = getPredictionStats();
+  if (!stats.nextDate) return result;
+  let date = stats.nextDate;
+  for (let index = 0; index < count; index += 1) {
+    result.add(toInputDate(date));
+    date = addDays(date, stats.length);
+  }
+  return result;
+}
+
+function getCycleInfo(dateKey) {
+  const date = parseLocalDate(dateKey);
+  const starts = state.cycles.map((cycle) => parseLocalDate(cycle.start_date)).filter((start) => start <= date).sort((a, b) => b - a);
+  if (!starts.length) return null;
+  return { start: starts[0], day: dayDifference(starts[0], date) + 1 };
+}
+
+function getPhase(day, cycleLength, periodLength) {
+  const ovulationDay = Math.max(periodLength + 2, cycleLength - 14);
   const fertileStart = Math.max(periodLength + 1, ovulationDay - 5);
-
-  if (day <= periodLength) {
-    return {
-      label: "Mestruazione",
-      className: "phase-period",
-      description: "Energia e sensibilita possono variare. Comfort e ascolto sono una buona base.",
-      trend: "Ritmo personale",
-      guidance: "Chiedi come sta e lascia spazio a cio che desidera davvero oggi."
-    };
-  }
-  if (day >= fertileStart && day < ovulationDay) {
-    return {
-      label: "Finestra fertile stimata",
-      className: "phase-fertile",
-      description: "In alcune persone energia e desiderio possono aumentare, ma non e una regola.",
-      trend: "Possibile slancio",
-      guidance: "Un invito aperto funziona meglio di un'aspettativa: la risposta reale viene prima della stima."
-    };
-  }
-  if (day === ovulationDay) {
-    return {
-      label: "Ovulazione stimata",
-      className: "phase-ovulation",
-      description: "Un momento biologicamente significativo, calcolato soltanto in modo orientativo.",
-      trend: "Picco stimato",
-      guidance: "Osserva energia, umore e desiderio senza considerarli automatici."
-    };
-  }
-  if (day > ovulationDay) {
-    const late = day > cycleLength - 6;
-    return {
-      label: "Fase luteale",
-      className: "phase-luteal",
-      description: late
-        ? "Verso la fine del ciclo possono comparire maggiore sensibilita o bisogno di spazio."
-        : "Il ritmo puo diventare piu variabile mentre il corpo si avvicina al ciclo successivo.",
-      trend: late ? "Sensibilita possibile" : "Ritmo variabile",
-      guidance: late
-        ? "Riduci le supposizioni: ascolto, chiarezza e gentilezza aiutano piu di qualsiasi previsione."
-        : "Mantieni le proposte leggere e facili da accettare, modificare o rifiutare."
-    };
-  }
-  return {
-    label: "Fase follicolare",
-    className: "phase-follicular",
-    description: "Energia in possibile crescita e passaggio graduale verso la fase fertile.",
-    trend: "Possibile ripresa",
-    guidance: "Puoi proporre qualcosa con leggerezza, verificando sempre come si sente davvero."
-  };
+  if (day <= periodLength) return { label: "Mestruazione", shortLabel: "Mestr.", className: "phase-period", trend: "Ritmo personale", description: "Energia e sensibilita possono variare. Il dato reale di oggi conta piu della fase stimata." };
+  if (day >= fertileStart && day < ovulationDay) return { label: "Finestra fertile stimata", shortLabel: "Fertile", className: "phase-fertile", trend: "Possibile slancio", description: "In alcune persone energia e desiderio possono aumentare, ma non e una regola." };
+  if (day === ovulationDay) return { label: "Ovulazione stimata", shortLabel: "Fertile", className: "phase-ovulation", trend: "Picco stimato", description: "Un passaggio calcolato in modo orientativo, da confrontare con le osservazioni reali." };
+  if (day > ovulationDay) return { label: "Fase luteale", shortLabel: "Luteale", className: "phase-luteal", trend: day > cycleLength - 6 ? "Sensibilita possibile" : "Ritmo variabile", description: "Umore, energia e desiderio possono diventare piu variabili verso il ciclo successivo." };
+  return { label: "Fase follicolare", shortLabel: "Follic.", className: "phase-follicular", trend: "Possibile ripresa", description: "Energia e desiderio possono crescere gradualmente dopo le mestruazioni." };
 }
 
-function populateObservation() {
-  const observation = state.observation;
-  const fields = ["energy", "mood", "libido", "irritability", "pain"];
-  fields.forEach((field) => {
-    elements[`${field}Input`].value = observation?.[field] ?? 0;
+function getPersonalForecast(day, fallbackPhase) {
+  const nearby = state.observations.filter((observation) => {
+    const info = getCycleInfo(observation.observation_date);
+    return info && Math.abs(info.day - day) <= 2;
   });
-  elements.notesInput.value = observation?.notes ?? "";
-  elements.energyOutput.textContent = Number.isInteger(observation?.energy) ? scoreLabels.energy[observation.energy] : "Non registrata";
-  elements.moodOutput.textContent = Number.isInteger(observation?.mood) ? scoreLabels.mood[observation.mood] : "Non registrato";
-  elements.libidoOutput.textContent = Number.isInteger(observation?.libido) ? scoreLabels.libido[observation.libido] : "Non registrata";
-  elements.irritabilityOutput.textContent = observation?.irritability ?? "0";
-  elements.painOutput.textContent = observation?.pain ?? "0";
-  elements.observationStatus.textContent = observation ? "Osservazione gia salvata" : "Ancora da compilare";
+  if (nearby.length < 2) return fallbackPhase.description;
+  const libidoValues = nearby.map((item) => normalizeScore(item.libido)).filter(Boolean);
+  const irritationValues = nearby.map((item) => normalizeScore(item.irritability)).filter(Boolean);
+  const parts = [];
+  if (libidoValues.length) parts.push(`libido media ${formatNumber(average(libidoValues))}/10`);
+  if (irritationValues.length) parts.push(`irritabilita media ${formatNumber(average(irritationValues))}/10`);
+  return parts.length ? `Nei giorni simili hai registrato ${parts.join(" e ")}.` : fallbackPhase.description;
 }
 
-function syncInputs() {
+function observationFor(dateKey) {
+  return state.observations.find((item) => item.observation_date === dateKey) ?? null;
+}
+
+function eventsFor(dateKey) {
+  return state.events.filter((item) => item.event_date === dateKey);
+}
+
+function hasDayData(dateKey) {
+  const observation = observationFor(dateKey);
+  return state.cycles.some((cycle) => cycle.start_date === dateKey) || eventsFor(dateKey).length > 0 || hasObservationValues(observation);
+}
+
+function hasObservationValues(observation) {
+  if (!observation) return false;
+  return [observation.libido, observation.mood, observation.irritability, observation.energy, observation.pain].some((value) => normalizeScore(value)) || Boolean(observation.notes);
+}
+
+function syncSettingsInputs() {
   elements.lastStart.value = state.lastStart ?? "";
   elements.cycleLength.value = state.cycleLength;
   elements.periodLength.value = state.periodLength;
 }
 
 function renderHistory() {
-  const history = [...new Set(state.history)].sort().reverse();
   elements.historyList.innerHTML = "";
-  if (history.length === 0) {
+  if (!state.history.length) {
     const item = document.createElement("li");
     item.textContent = "Nessuna data salvata";
     elements.historyList.appendChild(item);
     return;
   }
-  history.slice(0, 12).forEach((date) => {
+  state.history.slice(0, 12).forEach((date) => {
     const item = document.createElement("li");
     item.textContent = formatDate(parseLocalDate(date));
     elements.historyList.appendChild(item);
@@ -493,36 +890,27 @@ function normalizeHistoricalRows(rows) {
       pain: csvScore(row.pain, line, "pain"),
       notes: String(row.notes ?? "").trim() || null
     };
-    if (Object.values(observation).some((value) => value !== null && value !== date)) observations.push(observation);
+    if ([observation.mood, observation.libido, observation.energy, observation.irritability, observation.pain, observation.notes].some((value) => value !== null)) observations.push(observation);
   });
   return { cycleStarts: [...new Set(cycleStarts)], observations, total: rows.length };
 }
 
-function isCsvTrue(value) {
-  return ["true", "1", "yes", "si", "sì"].includes(String(value ?? "").trim().toLowerCase());
-}
-
-function csvScore(value, line, field) {
-  const text = String(value ?? "").trim();
-  if (text === "") return null;
-  const number = Number(text);
-  if (!Number.isInteger(number) || number < 0 || number > 5) throw new Error(`${field} deve essere da 0 a 5 alla riga ${line}.`);
-  return number;
-}
-
-function addHistoryDate(date) {
-  if (date) state.history = [...new Set([date, ...state.history])].slice(0, 24);
-}
-
+function isCsvTrue(value) { return ["true", "1", "yes", "si", "sì"].includes(String(value ?? "").trim().toLowerCase()); }
+function csvScore(value, line, field) { const text = String(value ?? "").trim(); if (text === "") return null; const number = Number(text); if (!Number.isInteger(number) || number < 0 || number > 10) throw new Error(`${field} deve essere da 0 a 10 alla riga ${line}.`); return number; }
+function normalizeScore(value) { const number = Number(value); return Number.isFinite(number) && number >= 1 && number <= 10 ? number : null; }
+function maxPoint(points) { return points.length ? [...points].sort((a, b) => b.y - a.y)[0] : null; }
+function average(values) { return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0; }
+function median(values) { const sorted = [...values].sort((a, b) => a - b); const middle = Math.floor(sorted.length / 2); return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2; }
+function formatNumber(value) { return new Intl.NumberFormat("it-IT", { maximumFractionDigits: 1 }).format(value); }
 function setSyncStatus(message) { elements.syncStatus.textContent = message; }
+function setBodyPhase(className) { document.body.classList.remove("phase-period", "phase-follicular", "phase-fertile", "phase-ovulation", "phase-luteal"); document.body.classList.add(className); }
 function readableError(error) { return error?.message || "Operazione non riuscita"; }
 function parseLocalDate(value) { const [year, month, day] = value.split("-").map(Number); return new Date(year, month - 1, day); }
 function toInputDate(date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`; }
 function addDays(date, days) { const next = new Date(date); next.setDate(next.getDate() + days); return next; }
 function startOfDay(date) { return new Date(date.getFullYear(), date.getMonth(), date.getDate()); }
-function getCycleDay(lastStart, length) { return positiveModulo(Math.floor((startOfDay(new Date()) - startOfDay(lastStart)) / MS_PER_DAY), length) + 1; }
-function positiveModulo(value, divisor) { return ((value % divisor) + divisor) % divisor; }
+function dayDifference(start, end) { return Math.round((startOfDay(end) - startOfDay(start)) / MS_PER_DAY); }
 function clamp(value, min, max) { return Math.min(Math.max(value || min, min), max); }
-function getDaysUntil(date) { const diff = Math.ceil((startOfDay(date) - startOfDay(new Date())) / MS_PER_DAY); if (diff === 0) return "Oggi"; if (diff === 1) return "Domani"; if (diff < 0) return "Da aggiornare"; return `${diff} giorni`; }
+function capitalize(value) { return value ? value.charAt(0).toUpperCase() + value.slice(1) : value; }
 function formatDate(date) { return new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "long", year: "numeric" }).format(date); }
 function formatShortDate(date) { return new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "short" }).format(date); }

@@ -32,16 +32,29 @@ create table if not exists public.daily_observations (
   owner_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
   profile_id uuid not null references public.profiles(id) on delete cascade,
   observation_date date not null,
-  mood smallint check (mood between 0 and 5),
-  libido smallint check (libido between 0 and 5),
-  energy smallint check (energy between 0 and 5),
-  irritability smallint check (irritability between 0 and 5),
-  pain smallint check (pain between 0 and 5),
+  mood smallint check (mood between 0 and 10),
+  libido smallint check (libido between 0 and 10),
+  energy smallint check (energy between 0 and 10),
+  irritability smallint check (irritability between 0 and 10),
+  pain smallint check (pain between 0 and 10),
   notes text,
   source text not null default 'manual' check (source in ('manual', 'import')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (profile_id, observation_date)
+);
+
+create table if not exists public.timeline_events (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  profile_id uuid not null references public.profiles(id) on delete cascade,
+  event_date date not null,
+  category text not null check (category in ('sex', 'conflict', 'other')),
+  intensity smallint check (intensity between 1 and 10),
+  details text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (profile_id, event_date, category)
 );
 
 create index if not exists cycle_events_owner_date_idx
@@ -50,9 +63,13 @@ create index if not exists cycle_events_owner_date_idx
 create index if not exists daily_observations_owner_date_idx
   on public.daily_observations (owner_id, observation_date desc);
 
+create index if not exists timeline_events_owner_date_idx
+  on public.timeline_events (owner_id, event_date desc);
+
 alter table public.profiles enable row level security;
 alter table public.cycle_events enable row level security;
 alter table public.daily_observations enable row level security;
+alter table public.timeline_events enable row level security;
 
 drop policy if exists "Owner controls profile" on public.profiles;
 create policy "Owner controls profile"
@@ -94,6 +111,22 @@ create policy "Owner controls observations"
     )
   );
 
+drop policy if exists "Owner controls timeline events" on public.timeline_events;
+create policy "Owner controls timeline events"
+  on public.timeline_events
+  for all
+  to authenticated
+  using ((select auth.uid()) = owner_id)
+  with check (
+    (select auth.uid()) = owner_id
+    and exists (
+      select 1
+      from public.profiles
+      where profiles.id = profile_id
+        and profiles.owner_id = (select auth.uid())
+    )
+  );
+
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql
@@ -121,3 +154,7 @@ create trigger daily_observations_set_updated_at
 before update on public.daily_observations
 for each row execute function public.set_updated_at();
 
+drop trigger if exists timeline_events_set_updated_at on public.timeline_events;
+create trigger timeline_events_set_updated_at
+before update on public.timeline_events
+for each row execute function public.set_updated_at();

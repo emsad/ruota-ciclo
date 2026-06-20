@@ -18,6 +18,7 @@ const state = {
   events: [],
   selectedDate: todayKey,
   calendarCursor: new Date(today.getFullYear(), today.getMonth(), 1),
+  insightRange: "month",
   activeFilters: new Set(),
   scores: { libido: null, mood: null, irritability: null, sex: null, conflict: null }
 };
@@ -39,7 +40,7 @@ function collectElements() {
     "nextPeriod", "predictionRange", "predictionConfidence", "historyList", "historyFile", "importHistory", "importStatus",
     "clearData", "calendarFilters", "previousMonth", "nextMonth", "calendarMonth", "monthGrid", "logSelected", "feedSummary",
     "eventList", "patternConfidence", "patternSummary", "libidoChart", "moodChart", "sexPhaseChart", "seasonChart",
-    "patternFindings", "drawerBackdrop", "dayDrawer", "closeDrawer", "drawerTitle", "drawerDate", "dayForm",
+    "patternFindings", "todayInsightsTitle", "insightRange", "drawerBackdrop", "dayDrawer", "closeDrawer", "drawerTitle", "drawerDate", "dayForm",
     "periodStartInput", "libidoValue", "moodValue", "irritabilityValue", "sexInput", "sexIntensityField", "sexValue",
     "conflictInput", "conflictIntensityField", "conflictValue", "otherInput", "otherDetailsLabel", "otherDetailsInput",
     "dayNotesInput", "drawerStatus"
@@ -74,6 +75,18 @@ function bindEvents() {
     const button = event.target.closest("button[data-filter]");
     if (!button) return;
     toggleFilter(button.dataset.filter);
+  });
+
+  elements.insightRange.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-range]");
+    if (!button) return;
+    state.insightRange = button.dataset.range;
+    elements.insightRange.querySelectorAll("button").forEach((item) => {
+      const active = item === button;
+      item.classList.toggle("is-active", active);
+      item.setAttribute("aria-pressed", String(active));
+    });
+    renderInsightDashboard();
   });
 
   document.addEventListener("keydown", (event) => {
@@ -249,14 +262,8 @@ function renderToday() {
     elements.predictionConfidence.textContent = stats.confidence;
   }
 
-  const observation = observationFor(todayKey);
   elements.todayRecordStatus.textContent = hasDayData(todayKey) ? "Giornata registrata" : "Nessuna osservazione registrata";
-  setTodayMetric("Libido", observation?.libido, elements.todayLibido, elements.todayLibidoNote);
-  setTodayMetric("Umore", observation?.mood, elements.todayMood, elements.todayMoodNote);
-  setTodayMetric("Irritabilita", observation?.irritability, elements.todayIrritability, elements.todayIrritabilityNote);
-  renderSparkline(elements.todayLibidoSpark, recentSeries("libido"));
-  renderSparkline(elements.todayMoodSpark, recentSeries("mood"));
-  renderSparkline(elements.todayIrritabilitySpark, recentSeries("irritability"));
+  renderInsightDashboard();
 }
 
 function renderTimeline(currentDay, length) {
@@ -279,33 +286,63 @@ function renderTimeline(currentDay, length) {
   });
 }
 
-function setTodayMetric(label, value, output, note) {
-  const score = normalizeScore(value);
-  output.textContent = score ? `${score}/10` : "-";
-  note.textContent = score ? `${label} registrata oggi` : "Non ancora registrata";
+function renderInsightDashboard() {
+  const windowInfo = getInsightWindow(state.insightRange);
+  elements.todayInsightsTitle.textContent = windowInfo.title;
+  const observations = state.observations
+    .filter((item) => item.observation_date >= windowInfo.startKey && item.observation_date <= todayKey)
+    .sort((a, b) => a.observation_date.localeCompare(b.observation_date));
+
+  renderInsightMetric("libido", "Libido", observations, elements.todayLibido, elements.todayLibidoNote, elements.todayLibidoSpark, windowInfo);
+  renderInsightMetric("mood", "Umore", observations, elements.todayMood, elements.todayMoodNote, elements.todayMoodSpark, windowInfo);
+  renderInsightMetric("irritability", "Irritabilita", observations, elements.todayIrritability, elements.todayIrritabilityNote, elements.todayIrritabilitySpark, windowInfo);
 }
 
-function recentSeries(field) {
-  return [...state.observations]
-    .filter((item) => normalizeScore(item[field]))
-    .sort((a, b) => a.observation_date.localeCompare(b.observation_date))
-    .slice(-14)
-    .map((item) => normalizeScore(item[field]));
+function getInsightWindow(range) {
+  if (range === "today") return { startKey: todayKey, startDate: today, title: "Il quadro di oggi" };
+  if (range === "3") {
+    const startDate = addDays(today, -2);
+    return { startKey: toInputDate(startDate), startDate, title: "Gli ultimi 3 giorni" };
+  }
+  if (range === "7") {
+    const startDate = addDays(today, -6);
+    return { startKey: toInputDate(startDate), startDate, title: "Gli ultimi 7 giorni" };
+  }
+  const startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+  const month = new Intl.DateTimeFormat("it-IT", { month: "long" }).format(today);
+  return { startKey: toInputDate(startDate), startDate, title: `Il quadro di ${month}` };
 }
 
-function renderSparkline(container, values) {
-  if (values.length < 2) {
-    container.innerHTML = "";
+function renderInsightMetric(field, label, observations, output, note, chart, windowInfo) {
+  const points = observations
+    .map((item) => ({ date: item.observation_date, value: normalizeScore(item[field]) }))
+    .filter((item) => item.value);
+  const values = points.map((item) => item.value);
+  output.textContent = values.length ? `${formatNumber(average(values))}/10` : "-";
+  if (values.length === 0) note.textContent = "Nessuna osservazione nel periodo";
+  else if (state.insightRange === "today") note.textContent = `${label} ${field === "mood" ? "registrato" : "registrata"} oggi`;
+  else note.textContent = `${values.length} ${values.length === 1 ? "osservazione" : "osservazioni"} · media del periodo`;
+  renderSparkline(chart, points, windowInfo.startDate, today);
+}
+
+function renderSparkline(container, points, startDate, endDate) {
+  if (points.length === 0) {
+    container.innerHTML = `<span class="sparkline-empty">Nessun dato</span>`;
     return;
   }
   const width = 260;
   const height = 56;
-  const points = values.map((value, index) => {
-    const x = values.length === 1 ? width / 2 : (index / (values.length - 1)) * width;
-    const y = height - ((value - 1) / 9) * (height - 8) - 4;
-    return `${x},${y}`;
-  }).join(" ");
-  container.innerHTML = `<svg viewBox="0 0 ${width} ${height}" aria-hidden="true"><polyline points="${points}" fill="none" stroke="currentColor" stroke-width="2"/><line x1="0" y1="${height - 4}" x2="${width}" y2="${height - 4}" stroke="currentColor" opacity=".15"/></svg>`;
+  const totalDays = dayDifference(startDate, endDate);
+  const coordinates = points.map((point) => {
+    const offset = dayDifference(startDate, parseLocalDate(point.date));
+    const x = totalDays === 0 ? width / 2 : (offset / totalDays) * width;
+    const y = height - ((point.value - 1) / 9) * (height - 8) - 4;
+    return { x, y };
+  });
+  const polyline = coordinates.map((point) => `${point.x},${point.y}`).join(" ");
+  const dots = coordinates.map((point) => `<circle cx="${point.x}" cy="${point.y}" r="3" fill="currentColor"/>`).join("");
+  const line = coordinates.length > 1 ? `<polyline points="${polyline}" fill="none" stroke="currentColor" stroke-width="2"/>` : "";
+  container.innerHTML = `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Andamento nel periodo">${line}${dots}<line x1="0" y1="${height - 4}" x2="${width}" y2="${height - 4}" stroke="currentColor" opacity=".15"/></svg>`;
 }
 
 function renderCalendar() {
